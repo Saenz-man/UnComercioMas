@@ -1,38 +1,57 @@
+// src/app.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config'; // Necesario para leer .env
+import { ConfigModule } from '@nestjs/config'; 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UsersModule } from './users/users.module'; // Importamos tu módulo de usuarios
+
+// --- Módulos del Core (Sprint 1) ---
+import { UsersModule } from './users/users.module'; 
 import { AuthModule } from './auth/auth.module';
 import { SharedModule } from './shared/shared.module';
 
+// --- Módulos del Catálogo (Sprint 2) ---
+import { CategoriesModule } from './categories/categories.module'; 
+import { ProductsModule } from './products/products.module';
+
+// --- Módulos de Operaciones (Sprint 2 y 3) ---
+import { BranchesModule } from './branches/branches.module'; // <-- ÚNICA importación de branches
+import { InventoryModule } from './inventory/inventory.module';   
+import { OrdersModule } from './orders/orders.module';           
+// ---------------------------------------------------
+
 @Module({
   imports: [
-    // 1. Módulo para la configuración (leer archivos .env)
+    // 1. Configuración Global (Lee .env)
     ConfigModule.forRoot({
-      isGlobal: true, // Hace que las variables de entorno estén disponibles globalmente
+      isGlobal: true, 
     }),
     
-    // 2. Módulo de TypeORM para PostgreSQL
+    // 2. Conexión a PostgreSQL (TypeORM)
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST, // Lee desde variables de entorno
-      port: +process.env.DB_PORT!, // El '+' convierte la cadena a número
+      host: process.env.DB_HOST, 
+      port: +process.env.DB_PORT!,
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      autoLoadEntities: true, // Carga automáticamente las entidades (como User.entity.ts)
-      synchronize: true, // SOLO USAR EN DESARROLLO: Sincroniza la estructura de la DB con las entidades.
-      // entities: [User], // Alternativamente, lista tus entidades aquí.
+      autoLoadEntities: true, 
+      synchronize: true, // SOLO EN DESARROLLO
     }),
 
-    // Tus Módulos
+    // Módulos del Sprint 1
     UsersModule,
     AuthModule,
     SharedModule,
+    
+    // Módulos del Sprint 2 y 3 (Catálogo, Inventario, Pedidos)
+    CategoriesModule, 
+    ProductsModule,
+    BranchesModule, // <-- Se queda aquí
+    InventoryModule, 
+    OrdersModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController], // <-- Limpiado
+  providers: [AppService],      // <-- Limpiado
 })
 export class AppModule {}

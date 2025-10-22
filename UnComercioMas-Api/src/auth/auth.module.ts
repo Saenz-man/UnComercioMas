@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller'; 
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy'; 
+import { RolesGuard } from './Guards/roles.guard'; // <-- Importación del Guard
 
 @Module({
   imports: [
@@ -17,9 +18,8 @@ import { JwtStrategy } from './jwt.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      // CORRECCIÓN 1: Tipamos el retorno como Promise<any> para evitar el conflicto estricto
+      // Tipado y uso de aserción no nula '!'
       useFactory: async (configService: ConfigService): Promise<any> => ({
-        // CORRECCIÓN 2: Usar '!' para asegurar que los valores existen
         secret: configService.get<string>('JWT_SECRET')!, 
         signOptions: { 
           expiresIn: configService.get<string>('JWT_EXPIRATION_TIME')!,
@@ -30,7 +30,15 @@ import { JwtStrategy } from './jwt.strategy';
   controllers: [AuthController],
   providers: [
     AuthService, 
-    JwtStrategy 
+    JwtStrategy,
+    RolesGuard, // <-- REGISTRAR: El RolesGuard es un proveedor
   ],
+  // Exportamos los Guards y servicios para que otros módulos (como UsersModule) puedan usarlos para proteger rutas
+  exports: [
+    AuthService, 
+    JwtModule, 
+    JwtStrategy, 
+    RolesGuard // <-- EXPORTAR: Permite usar @UseGuards(RolesGuard) en otros módulos
+  ]
 })
 export class AuthModule {}
