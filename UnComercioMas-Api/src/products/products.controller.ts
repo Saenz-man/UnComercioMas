@@ -1,18 +1,20 @@
 // src/products/products.controller.ts
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
   Patch,
-  Param, 
-  Delete, 
-  UseGuards, 
-  HttpCode, 
+  Param,
+  Delete,
+  UseGuards,
+  HttpCode,
   HttpStatus,
-  UseInterceptors,     
+  UseInterceptors,
   UploadedFile,
-  BadRequestException 
+  BadRequestException,
+  ValidationPipe,
+  ParseUUIDPipe, // <-- *** CORRECCIÓN AQUÍ: Importación añadida ***
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 
@@ -25,13 +27,13 @@ import { CreateProductVariantDto } from './DTO/create-product-variant.dto';
 import { UpdateProductVariantDto } from './DTO/update-product-variant.dto';
 
 // --- Imports de Seguridad y Swagger ---
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiResponse, 
-  ApiBearerAuth, 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
   ApiBody,
-  ApiConsumes 
+  ApiConsumes
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/Guards/roles.guard';
@@ -40,22 +42,29 @@ import { UserRole } from '../users/entities/user.entity';
 
 // --- Imports para Manejo de Archivos ---
 import { FileInterceptor } from '@nestjs/platform-express';
-// --- NO IMPORTAR 'Express' DE 'express' ---
-// El tipo 'Express.Multer.File' es global.
 
-  
+// --- DTO para Borrado Masivo ---
+import { IsUUID, IsArray, ArrayNotEmpty } from 'class-validator';
+class BulkDeleteProductsDto {
+  @IsArray({ message: 'productIds debe ser un array.' })
+  @ArrayNotEmpty({ message: 'productIds no puede estar vacío.' })
+  @IsUUID('4', { each: true, message: 'Cada ID en productIds debe ser un UUID v4 válido.' })
+  productIds: string[];
+}
+// --- FIN DTO ---
+
 @ApiTags('Catálogo / Productos y Variantes')
-@Controller('products')
+@Controller('products') // Prefijo global 'api/v1' se aplica automáticamente
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   // ====================================================
-  // --- CRUD del Producto "Padre" (S2.3 / S2.5) ---
+  // --- CRUD del Producto "Padre" ---
   // ====================================================
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard) 
-  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN) 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'ADMIN: Crea un nuevo producto "Padre"' })
@@ -70,35 +79,54 @@ export class ProductsController {
     return this.productsService.findAll();
   }
 
-  // ... (tus otros endpoints de producto padre: findOne, update, remove) ...
+  // Ahora ParseUUIDPipe se reconoce
   @Get(':id')
   @ApiOperation({ summary: 'PÚBLICO: Obtiene un producto "Padre" por ID' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.productsService.findOne(id);
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard) 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'ADMIN: Actualiza un producto "Padre" por ID' })
   @ApiBody({ type: UpdateProductDto })
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateProductDto: UpdateProductDto) {
     return this.productsService.update(id, updateProductDto);
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard) 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'ADMIN: Elimina un producto "Padre" (y todas sus variantes)' })
-  remove(@Param('id') id: string) {
+  @ApiOperation({ summary: 'ADMIN: Elimina un producto "Padre" (y sus variantes)' })
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.productsService.remove(id);
   }
 
+  // --- Endpoint Borrado Masivo ---
+  @Delete('bulk')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'ADMIN: Eliminar múltiples productos por sus IDs' })
+  @ApiBody({ type: BulkDeleteProductsDto, description: 'Array con los IDs (UUIDs) de los productos a eliminar' })
+  @ApiResponse({ status: 204, description: 'Productos eliminados exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos (ej. array vacío, IDs no son UUIDs válidos).' })
+  @ApiResponse({ status: 401, description: 'No autorizado.' })
+  @ApiResponse({ status: 403, description: 'Prohibido (rol no permitido).' })
+  async bulkRemove(@Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })) bulkDeleteDto: BulkDeleteProductsDto): Promise<void> {
+    console.log(`[ProductsController] Solicitud de borrado masivo recibida para IDs:`, bulkDeleteDto.productIds);
+    await this.productsService.bulkRemove(bulkDeleteDto.productIds);
+  }
+  // --- FIN Borrado Masivo ---
+
+
   // ====================================================
-  // --- CRUD de Variantes (SKUs) (S2.6) ---
+  // --- CRUD de Variantes (SKUs) ---
   // ====================================================
 
   @Post(':productId/variants')
@@ -107,73 +135,61 @@ export class ProductsController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'ADMIN: Crea una nueva variante (SKU) para un producto' })
-  @ApiResponse({ status: 201, description: 'Variante creada con éxito.'})
-  @ApiResponse({ status: 404, description: 'Producto "Padre" no encontrado.'})
+  @ApiResponse({ status: 201, description: 'Variante creada.'})
+  @ApiResponse({ status: 404, description: 'Producto padre no encontrado.'})
   @ApiBody({ type: CreateProductVariantDto })
   createVariant(
-    @Param('productId') productId: string,
+    @Param('productId', ParseUUIDPipe) productId: string,
     @Body() createVariantDto: CreateProductVariantDto,
   ) {
     return this.productsService.createVariant(productId, createVariantDto);
   }
 
-  // --- NUEVO ENDPOINT DE CARGA MASIVA ---
+  // --- Endpoint Carga Masiva ---
   @Post(':productId/variants/bulk-upload')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'ADMIN: Carga masiva de variantes (SKUs) desde un CSV' })
-  @ApiResponse({ status: 201, description: 'Variantes creadas con éxito.'})
-  @ApiResponse({ status: 400, description: 'Archivo CSV malformado.'})
-  @ApiConsumes('multipart/form-data') 
+  @ApiResponse({ status: 201, description: 'Variantes creadas.'})
+  @ApiResponse({ status: 400, description: 'Archivo CSV malformado o no proporcionado.'})
+  @ApiConsumes('multipart/form-data')
   @ApiBody({
-    description: 'Archivo CSV con las variantes. Columnas requeridas: sku, stock. Columnas opcionales: talla, color, material, etc.',
-    schema: {
-      type: 'object',
-      properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-        },
-      },
-    },
+    schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+    description: 'Archivo CSV con columnas: sku, stock, [atributos...]',
   })
-  @UseInterceptors(FileInterceptor('file')) 
+  @UseInterceptors(FileInterceptor('file'))
   async bulkCreateVariants(
-    @Param('productId') productId: string,
-    @UploadedFile() file: Express.Multer.File, // <-- Este tipo (Express.Multer.File) ahora funcionará
+    @Param('productId', ParseUUIDPipe) productId: string,
+    @UploadedFile() file: Express.Multer.File,
   ) {
-    if (!file) {
-      throw new BadRequestException('No se ha subido ningún archivo.');
-    }
-    
+    if (!file) { throw new BadRequestException('No se ha subido ningún archivo.'); }
     return this.productsService.bulkCreateVariants(productId, file.buffer);
   }
-  // --- FIN DE NUEVO ENDPOINT ---
+  // --- FIN Carga Masiva ---
 
   @Get(':productId/variants')
   @ApiOperation({ summary: 'PÚBLICO: Obtiene todas las variantes (SKUs) de un producto' })
-  @ApiResponse({ status: 200, description: 'Lista de variantes del producto.'})
-  findVariantsByProduct(@Param('productId') productId: string) {
+  @ApiResponse({ status: 200, description: 'Lista de variantes.'})
+  findVariantsByProduct(@Param('productId', ParseUUIDPipe) productId: string) {
     return this.productsService.findVariantsByProduct(productId);
   }
 
-  // ... (tus otros endpoints de variantes: updateVariant, removeVariant, findOneVariant) ...
   @Patch('variants/:variantId')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'ADMIN: Actualiza una variante (ej. stock) por su ID' })
+  @ApiOperation({ summary: 'ADMIN: Actualiza una variante por su ID' })
   @ApiResponse({ status: 200, description: 'Variante actualizada.'})
   @ApiResponse({ status: 404, description: 'Variante no encontrada.'})
   @ApiBody({ type: UpdateProductVariantDto })
   updateVariant(
-    @Param('variantId') variantId: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
     @Body() updateVariantDto: UpdateProductVariantDto,
   ) {
     return this.productsService.updateVariant(variantId, updateVariantDto);
   }
-  
+
   @Delete('variants/:variantId')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
@@ -182,7 +198,7 @@ export class ProductsController {
   @ApiOperation({ summary: 'ADMIN: Elimina una variante (SKU) por su ID' })
   @ApiResponse({ status: 204, description: 'Variante eliminada.'})
   @ApiResponse({ status: 404, description: 'Variante no encontrada.'})
-  removeVariant(@Param('variantId') variantId: string) {
+  removeVariant(@Param('variantId', ParseUUIDPipe) variantId: string) {
     return this.productsService.removeVariant(variantId);
   }
 
@@ -190,7 +206,8 @@ export class ProductsController {
   @ApiOperation({ summary: 'PÚBLICO: Obtiene una variante (SKU) específica por su ID' })
   @ApiResponse({ status: 200, description: 'Variante encontrada.'})
   @ApiResponse({ status: 404, description: 'Variante no encontrada.'})
-  findOneVariant(@Param('variantId') variantId: string) {
+  findOneVariant(@Param('variantId', ParseUUIDPipe) variantId: string) {
     return this.productsService.findOneVariant(variantId);
   }
-}
+
+} // Fin de la clase ProductsController

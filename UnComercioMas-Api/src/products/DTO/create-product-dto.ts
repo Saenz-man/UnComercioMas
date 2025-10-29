@@ -1,110 +1,124 @@
-// src/products/DTO/create-product-dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { 
-  IsString, 
-  IsNotEmpty, 
-  IsNumber, 
-  IsUUID, 
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsUUID,
   IsOptional,
-  Min,
   IsPositive,
   IsArray,
-  ValidateNested,
-  IsInt,
-  IsUrl,     // <-- Para validar URLs de video
-  IsObject   // <-- Para validar el objeto 'opciones'
+  ValidateNested, // <-- Importante para validar el array de variantes
+  IsUrl,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { CreateProductVariantDto } from './create-product-variant.dto'; // <-- IMPORTANTE
 
-// --- DTO Anidado para Precios por Volumen (Se queda igual) ---
+// --- DTO Anidado para Precios por Volumen (Corregido con mensajes) ---
 class CreateVolumePriceDto {
-  
-  @ApiProperty({ description: 'Cantidad mínima para este precio', example: 10 })
-  @IsInt()
-  @IsPositive()
+  @ApiProperty({ description: 'Cantidad mínima', example: 10 })
+  @IsPositive({
+    message: 'La cantidad mínima por volumen debe ser un número positivo',
+  })
   cantidad_minima: number;
 
-  @ApiProperty({ description: 'Precio para esta cantidad', example: 95.50 })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
+  @ApiProperty({ description: 'Precio para esta cantidad', example: 80 })
+  @IsPositive({
+    message: 'El precio por volumen debe ser mayor a $0.0',
+  })
   precio: number;
 }
 // -----------------------------------------------------------------
 
-
 export class CreateProductDto {
-
-  @ApiProperty({ description: 'Nombre del producto', example: 'Camiseta Olimpica' })
+  // --- Datos del Producto Padre ---
+  @ApiProperty({ description: 'Nombre', example: 'Playera Brush Manga Corta' })
   @IsString()
   @IsNotEmpty()
   nombre: string;
 
-  @ApiProperty({ description: 'Slug único para URL', example: 'camiseta-olimpica' })
+  // --- ¡CAMBIO AQUÍ! ---
+  @ApiProperty({
+    description: 'Modelo',
+    example: 'Hombre',
+    required: false, // <-- Se marca como opcional
+  })
   @IsString()
-  @IsNotEmpty()
-  slug: string;
+  @IsOptional() // <-- Se cambia IsNotEmpty por IsOptional
+  modelo?: string; // Se añade '?' para indicar que es opcional
+  // --- FIN DEL CAMBIO ---
 
-  @ApiProperty({ description: 'Descripción detallada', example: 'Una camiseta cómoda...', required: false })
+  @ApiProperty({ description: 'Descripción', required: false })
   @IsString()
   @IsOptional()
   descripcion?: string;
 
-  // --- CAMPO 'sku' ELIMINADO ---
+  @ApiProperty({ description: 'Precio por pieza (menudeo)', example: 100 })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'El precio debe ser un número con máximo 2 decimales.' },
+  )
+  @IsPositive({
+    message: 'El valor del producto debe ser mayor a $0.0', // <--- AQUÍ ESTÁ LA CORRECCIÓN
+  })
+  precioPorPieza: number;
 
-  @ApiProperty({ description: 'Precio base (menudeo)', example: 100.00 })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
-  precio_base: number;
-
-  // --- CAMPO 'stock' ELIMINADO ---
-
-  @ApiProperty({ description: 'ID (UUID) de la categoría a la que pertenece' })
+  @ApiProperty({ description: 'ID de la categoría' })
   @IsUUID()
   @IsNotEmpty()
-  categoria_id: string; 
+  categoria_id: string;
 
-  // --- Precios por Volumen (Se queda igual) ---
+  // REQUISITO: Precios por distribuidor (se queda igual)
+  @ApiProperty({ type: [CreateVolumePriceDto], required: false })
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => CreateVolumePriceDto)
+  preciosPorVolumen?: CreateVolumePriceDto[];
+
+  // REQUISITO: Foto genérica del padre
   @ApiProperty({
-    description: 'Array opcional de precios por volumen (mayoreo, distribuidor)',
-    type: [CreateVolumePriceDto], 
+    description: 'Fotos genéricas del producto padre',
     required: false,
   })
   @IsArray()
-  @IsOptional()
-  @ValidateNested({ each: true }) 
-  @Type(() => CreateVolumePriceDto) 
-  preciosPorVolumen?: CreateVolumePriceDto[];
-
-  // ------------------------------------------
-  // --- NUEVOS CAMPOS (Refactor S2.5) ---
-  // ------------------------------------------
-
-  @ApiProperty({
-    description: 'Array de URLs de las fotos del producto',
-    example: ['https://.../foto1.jpg', 'https://.../foto2.jpg'],
-    required: false
-  })
-  @IsArray()
-  @IsUrl({}, { each: true }) // Valida que cada elemento del array sea una URL
+  @IsString({ each: true })
   @IsOptional()
   fotos?: string[];
 
-  @ApiProperty({
-    description: 'URL del video de demostración',
-    example: 'https://youtube.com/watch?v=...',
-    required: false
-  })
-  @IsUrl()
+  // REQUISITO: Video del padre
+  @ApiProperty({ description: 'Video del producto padre', required: false })
+  @IsString()
   @IsOptional()
   video?: string;
 
+  // REQUISITO: Opciones (Tallas, Colores)
   @ApiProperty({
-    description: 'Objeto que define las opciones del producto',
-    example: { "Talla": ["S", "M", "G"], "Color": ["Rojo", "Azul"] },
-    required: false
+    description: 'Define las opciones disponibles',
+    example: { Talla: ['CH', 'M', 'G'], Color: ['Blanco', 'Negro'] },
   })
   @IsObject()
+  @IsNotEmpty() // Hacemos que sea obligatorio definir opciones
+  opciones: Record<string, string[]>; // <-- Debe ser string[]
+
+  // --- REQUISITO CLAVE: Array de SKUs (Hijos) ---
+  @ApiProperty({
+    description: 'Array de todas las variantes (SKUs) del producto',
+    type: [CreateProductVariantDto],
+  })
+  @IsArray()
+  @IsNotEmpty()
+  @ValidateNested({ each: true }) // <-- Valida cada objeto del array
+  @Type(() => CreateProductVariantDto) // <-- Usa el DTO de variante
+  variantes: CreateProductVariantDto[];
+  // --- FIN DE LA MODIFICACIÓN ---
+
+  @ApiProperty({
+    description: 'Slug',
+    example: 'playera-brush-manga-corta',
+    required: false,
+  })
+  @IsString()
   @IsOptional()
-  opciones?: Record<string, any>;
-  // ------------------------------------------
+  slug?: string;
 }

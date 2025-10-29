@@ -1,7 +1,7 @@
 // src/branches/branches.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm'; // <-- Importar Not
+import { Repository, Not } from 'typeorm';
 import { Branch } from './entities/branch.entity';
 import { CreateBranchDto } from './DTO/create-branch.dto';
 import { UpdateBranchDto } from './DTO/update-branch.dto';
@@ -31,9 +31,7 @@ export class BranchesService {
 
   // --- CREAR (POST) ---
   async create(createDto: CreateBranchDto): Promise<Branch> {
-    // Si esta nueva sucursal será la matriz...
     if (createDto.es_matriz) {
-      // ...quitamos la bandera de cualquier otra que la tuviera.
       await this.handleMatrixStatus();
     }
 
@@ -45,7 +43,7 @@ export class BranchesService {
   async findAll(): Promise<Branch[]> {
     return this.branchRepository.find({
       order: {
-        es_matriz: 'DESC', // Opcional: Pone la matriz primero
+        es_matriz: 'DESC',
         nombre: 'ASC',
       },
     });
@@ -62,13 +60,10 @@ export class BranchesService {
 
   // --- ACTUALIZAR (PATCH /:id) ---
   async update(id: string, updateDto: UpdateBranchDto): Promise<Branch> {
-    // Si esta actualización la convertirá en matriz...
     if (updateDto.es_matriz) {
-      // ...quitamos la bandera de cualquier otra.
       await this.handleMatrixStatus(id);
     }
 
-    // Preload fusiona la entidad existente con los nuevos datos
     const branch = await this.branchRepository.preload({
       id: id,
       ...updateDto,
@@ -87,5 +82,16 @@ export class BranchesService {
     if (result.affected === 0) {
       throw new NotFoundException(`Sucursal con ID "${id}" no encontrada.`);
     }
+  }
+  
+  // 🟢 MÉTODO NUEVO PARA ENCONTRAR LA MATRIZ
+  async findMatriz(): Promise<Branch> {
+    const matriz = await this.branchRepository.findOneBy({ es_matriz: true });
+    
+    if (!matriz) {
+      // Lanzar error si no hay matriz, es un requisito funcional.
+      throw new NotFoundException('No se encontró ninguna sucursal marcada como Matriz.');
+    }
+    return matriz;
   }
 }

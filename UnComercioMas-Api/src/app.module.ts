@@ -18,7 +18,8 @@ import { ProductsModule } from './products/products.module';
 import { BranchesModule } from './branches/branches.module'; // <-- ÚNICA importación de branches
 import { InventoryModule } from './inventory/inventory.module';   
 import { OrdersModule } from './orders/orders.module';           
-// ---------------------------------------------------
+// ----Módulo de subida de contenido ------
+import { UploadsModule } from './uploads/uploads.module'; // 👈 Importamos el módulo de Uploads
 
 @Module({
   imports: [
@@ -50,6 +51,8 @@ import { OrdersModule } from './orders/orders.module';
     BranchesModule, // <-- Se queda aquí
     InventoryModule, 
     OrdersModule,
+    //Nuevo modelo
+    UploadsModule, // 👈 Añadido aquí para registrar el controlador de uploads
   ],
   controllers: [AppController], // <-- Limpiado
   providers: [AppService],      // <-- Limpiado

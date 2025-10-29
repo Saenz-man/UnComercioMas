@@ -33,7 +33,7 @@ export class AuthController {
     
     const user = await this.authService.validateUser(
         loginDto.email, 
-        loginDto.hash_contrasena
+        loginDto.password
     );
 
     if (!user) {

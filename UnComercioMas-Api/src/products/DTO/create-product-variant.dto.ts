@@ -1,45 +1,59 @@
-// src/products/DTO/create-product-variant.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { 
-  IsString, 
-  IsNotEmpty, 
-  IsInt,
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsPositive,
   IsObject,
+  IsUrl,
   Min,
-  IsOptional
 } from 'class-validator';
 
 export class CreateProductVariantDto {
-
-  @ApiProperty({ 
-    description: 'SKU único de la variante (ej: 01010101)', 
-    example: '01010101' 
+  @ApiProperty({
+    description: 'El SKU único',
+    example: 'PLAYERA-BRUSH-H-CH-BLANCO',
   })
   @IsString()
   @IsNotEmpty()
   sku: string;
 
-  @ApiProperty({ 
-    description: 'Stock físico de esta variante', 
-    example: 150 
-  })
-  @IsInt()
-  @Min(0)
+  @ApiProperty({ description: 'Stock de esta variante', example: 50 })
+  @IsNumber({}, { message: 'El stock debe ser un número.' })
+  @Min(0, { message: 'El stock no puede ser un número negativo.' })
   stock: number;
 
-  @ApiProperty({ 
-    description: 'Objeto de atributos que definen la variante', 
-    example: { "talla": "XS", "color": "Amarillo" }
-  })
-  @IsObject()
-  @IsNotEmpty()
-  atributos: Record<string, string>;
-
-  @ApiProperty({ 
-    description: 'URL de la foto específica de esta variante (ej: camiseta amarilla)', 
-    required: false 
+  // REQUISITO CLAVE: Foto específica del SKU
+  @ApiProperty({
+    description: 'URL de la foto para esta variante específica',
+    required: false,
   })
   @IsString()
   @IsOptional()
-  foto_variante?: string;
+  foto?: string;
+
+  // REQUISITO CLAVE: Opciones de esta variante
+  @ApiProperty({
+    description: 'Combinación de opciones',
+    example: { Talla: 'CH', Color: 'Blanco' },
+  })
+  @IsObject()
+  @IsNotEmpty()
+  opciones: Record<string, string>; // Ej: { "Talla": "CH", "Color": "Blanco" }
+
+  // Puedes añadir más campos si el precio o peso varían
+  @ApiProperty({
+    description: 'Precio de esta variante (si es diferente al padre)',
+    required: false,
+  })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'El precio de la variante debe ser un número.' },
+  )
+  @IsPositive({
+    message: 'El precio de la variante debe ser mayor a $0.0', // <--- AQUÍ
+  })
+  @IsOptional()
+  precio?: number;
 }

@@ -1,27 +1,32 @@
-// src/products/entities/product.entity.ts
 import { 
   Entity, 
   PrimaryGeneratedColumn, 
   Column, 
-  CreateDateColumn, 
-  UpdateDateColumn, 
+  CreateDateColumn,
+  UpdateDateColumn,
   ManyToOne,
   JoinColumn,
   OneToMany
 } from 'typeorm';
 import { Category } from '../../categories/entities/category.entity';
 import { VolumePrice } from './volume-price.entity';
-// 1. Importaremos la (futura) entidad de Variantes
-import { ProductVariant } from './product-variant.entity'; 
+import { ProductVariant } from './product-variant.entity';
 
-@Entity({ name: 'productos' }) // Nombre de la tabla
+@Entity({ name: 'productos' })
 export class Product {
   
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'varchar', length: 255, unique: true })
-  nombre: string; // Ej: "Camiseta Olimpica"
+  nombre: string;
+
+  @Column({ 
+    type: 'varchar', 
+    length: 255,
+    nullable: true // <-- ¡CAMBIO AQUÍ! Permite valores nulos
+  })
+  modelo: string;
 
   @Column({ type: 'varchar', length: 255, unique: true })
   slug: string;
@@ -29,72 +34,39 @@ export class Product {
   @Column({ type: 'text', nullable: true })
   descripcion: string;
 
-  @Column({ 
-    type: 'decimal', 
-    precision: 10, // Total de dígitos
-    scale: 2,       // Dígitos después del punto
-    default: 0.00 
-  })
-  precio_base: number; // Este es tu precio "Menudeo"
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0.00 })
+  precioPorPieza: number; 
   
-  // --- CAMPO 'sku' ELIMINADO ---
-  // (Ahora pertenece a la Variante)
-
-  // --- CAMPO 'stock' ELIMINADO ---
-  // (Ahora pertenece a la Variante)
-
-  // --- NUEVOS CAMPOS (Refactor S2.5) ---
-  @Column({
-    type: 'jsonb',
-    nullable: false,
-    default: [],
-    comment: 'Galería de fotos principales (array de URLs)'
-  })
+  @Column({ type: 'jsonb', nullable: false, default: [] })
   fotos: string[];
 
-  @Column({
-    type: 'text',
-    nullable: true,
-    comment: 'URL del video de demostración'
-  })
+  @Column({ type: 'text', nullable: true })
   video: string;
 
-  @Column({
-    type: 'jsonb',
-    nullable: false,
-    default: {},
-    comment: 'Define las opciones (ej: {"Talla": ["S", "M"], "Color": ["Rojo"]})'
-  })
+  @Column({ type: 'jsonb', nullable: false, default: {} })
   opciones: Record<string, any>;
-  // --- FIN DE NUEVOS CAMPOS ---
-
-
-  // --- Relación con Categorías (Se queda igual) ---
-  @ManyToOne(() => Category, (category) => category.products, { 
+  
+  // --- Relaciones ---
+  @ManyToOne(() => Category, (category: Category) => category.products, {
     nullable: false, 
     onDelete: 'RESTRICT' 
   })
   @JoinColumn({ name: 'categoria_id' }) 
   categoria: Category;
   
-  // --- Relación Precios por Volumen (S2.4) (Se queda igual) ---
-  @OneToMany(() => VolumePrice, (price) => price.producto, { 
+  @OneToMany(() => VolumePrice, (price: VolumePrice) => price.producto, {
     cascade: true, 
-    eager: true    // Esto está bien, un producto no tendrá miles de precios
+    eager: true    
   })
   preciosPorVolumen: VolumePrice[];
   
-  // --- NUEVA RELACIÓN (S2.6) ---
-  // Un producto "Padre" tiene MUCHAS "Variantes" (SKUs)
-  @OneToMany(() => ProductVariant, (variant) => variant.producto, {
-    cascade: true, // Si se guarda el producto, se guardan las variantes
-    eager: false   // ¡Importante! No queremos cargar cientos de variantes por defecto
+  @OneToMany(() => ProductVariant, (variant: ProductVariant) => variant.producto, {
+    cascade: true,
+    eager: false   
   })
   variantes: ProductVariant[];
-  // --- FIN DE NUEVA RELACIÓN ---
 
-  
-  // --- Timestamps (Se quedan igual) ---
+  // --- Timestamps ---
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 

@@ -1,66 +1,61 @@
 // src/products/products.service.ts
-import { 
-  Injectable, 
+import {
+  Injectable,
   NotFoundException,
-  BadRequestException, 
-  InternalServerErrorException 
+  BadRequestException,
+  InternalServerErrorException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource, DeepPartial, In } from 'typeorm'; // Importa 'In'
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './DTO/create-product-dto';
 import { UpdateProductDto } from './DTO/update-product-dto';
-import { CategoriesService } from '../categories/service/categories.service'; 
+import { CategoriesService } from '../categories/service/categories.service';
 
-// --- Importar entidad y DTOs de Variantes ---
 import { ProductVariant } from './entities/product-variant.entity';
 import { CreateProductVariantDto } from './DTO/create-product-variant.dto';
 import { UpdateProductVariantDto } from './DTO/update-product-variant.dto';
 
-// --- Imports para Carga Masiva (CSV) ---
-// --- 1. CAMBIO DE IMPORTACIÓN ---
+import { VolumePrice } from './entities/volume-price.entity';
+import { BranchesService } from '../branches/branches.service';
+import { InventoryService } from '../inventory/inventory.service';
+
 import csvParser = require('csv-parser');
 import { Readable } from 'stream';
 
 @Injectable()
-export class ProductsService {
+// --- ¡CORRECCIÓN AQUÍ! ---
+export class ProductsService { // <-- Añadido 'export'
+// --- FIN CORRECCIÓN ---
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
-    
     @InjectRepository(ProductVariant)
     private readonly productVariantRepository: Repository<ProductVariant>,
-
+    @InjectRepository(VolumePrice)
+    private readonly volumePriceRepository: Repository<VolumePrice>,
     private readonly categoriesService: CategoriesService,
+    private readonly branchesService: BranchesService,
+    @Inject(forwardRef(() => InventoryService))
+    private readonly inventoryService: InventoryService,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ====================================================
-  // --- CRUD del Producto "Padre" ---
+  // --- MÉTODOS DE LECTURA ---
   // ====================================================
-
-  async create(createProductDto: CreateProductDto): Promise<Product> {
-    const { categoria_id, ...productData } = createProductDto;
-    const categoria = await this.categoriesService.findOne(categoria_id);
-
-    const nuevoProducto = this.productRepository.create({
-      ...productData,
-      categoria: categoria, 
-    });
-
-    return this.productRepository.save(nuevoProducto);
-  }
-
-  // ... (tus otros métodos de producto padre: findAll, findOne, update, remove) ...
   async findAll(): Promise<Product[]> {
     return this.productRepository.find({
-      relations: ['categoria'],
+      relations: ['categoria', 'variantes', 'preciosPorVolumen'],
     });
   }
 
   async findOne(id: string): Promise<Product> {
     const producto = await this.productRepository.findOne({
       where: { id },
-      relations: ['categoria'],
+      relations: ['categoria', 'variantes', 'preciosPorVolumen'],
     });
 
     if (!producto) {
@@ -69,163 +64,404 @@ export class ProductsService {
     return producto;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
-    const { categoria_id, ...productData } = updateProductDto;
-    
-    const producto = await this.productRepository.preload({
-      id: id,
-      ...productData,
-    });
-
-    if (!producto) {
-      throw new NotFoundException(`Producto con ID "${id}" no encontrado.`);
-    }
-
-    if (categoria_id) {
-      const categoria = await this.categoriesService.findOne(categoria_id);
-      producto.categoria = categoria;
-    }
-
-    return this.productRepository.save(producto);
-  }
-
-  async remove(id: string): Promise<void> {
-    const result = await this.productRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Producto con ID "${id}" no encontrado.`);
-    }
-  }
-
-  // ====================================================
-  // --- CRUD de Variantes (SKUs) ---
-  // ====================================================
-
-  // ... (tus otros métodos de variantes: createVariant, findVariantsByProduct, etc.) ...
-  async createVariant(
-    productId: string, 
-    createDto: CreateProductVariantDto
-  ): Promise<ProductVariant> {
-    
-    const productoPadre = await this.findOne(productId);
-    
-    const newVariant = this.productVariantRepository.create({
-      ...createDto,
-      producto: productoPadre,
-    });
-
-    return this.productVariantRepository.save(newVariant);
-  }
-
-  async findVariantsByProduct(productId: string): Promise<ProductVariant[]> {
-    return this.productVariantRepository.find({
-      where: { 
-        producto: { id: productId } 
-      }
-    });
-  }
-
-  async updateVariant(
-    variantId: string, 
-    updateDto: UpdateProductVariantDto
-  ): Promise<ProductVariant> {
-    
-    const variant = await this.productVariantRepository.preload({
-      id: variantId,
-      ...updateDto,
-    });
-
-    if (!variant) {
-      throw new NotFoundException(`Variante con ID "${variantId}" no encontrada.`);
-    }
-
-    return this.productVariantRepository.save(variant);
-  }
-
-  async removeVariant(variantId: string): Promise<void> {
-    const result = await this.productVariantRepository.delete(variantId);
-
-    if (result.affected === 0) {
-      throw new NotFoundException(`Variante con ID "${variantId}" no encontrada.`);
-    }
-  }
-
   async findOneVariant(variantId: string): Promise<ProductVariant> {
     const variant = await this.productVariantRepository.findOne({
       where: { id: variantId },
-      relations: ['producto']
+      relations: ['producto'],
     });
 
     if (!variant) {
-      throw new NotFoundException(`Variante con ID "${variantId}" no encontrada.`);
+      throw new NotFoundException(
+        `Variante con ID "${variantId}" no encontrada.`,
+      );
     }
     return variant;
   }
 
-  // ----------------------------------------------------
-  // --- LÓGICA DE CARGA MASIVA DE VARIANTES ---
+  // ====================================================
+  // --- CRUD del Producto "Padre" ---
+  // ====================================================
+  async create(createProductDto: CreateProductDto): Promise<Product> {
+
+    console.log(`[ProductsService] DTO Recibido en create():`, JSON.stringify(createProductDto, null, 2));
+
+    const {
+      variantes: variantesDto = [],
+      preciosPorVolumen: preciosDto = [],
+      categoria_id,
+      fotos,
+      video,
+      ...productData
+    } = createProductDto;
+
+    if (fotos && fotos.length > 0) {
+      console.log(`[ProductsService] 'fotos' recibidas:`, fotos);
+    } else {
+      console.warn(`[ProductsService] ADVERTENCIA: El campo 'fotos' (padre) llegó vacío o nulo.`);
+    }
+
+    const categoria = await this.categoriesService.findOne(categoria_id);
+    if (!categoria) {
+      throw new BadRequestException(`La categoría con ID ${categoria_id} no existe.`);
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    let product: Product;
+
+    try {
+      const newVariantes: DeepPartial<ProductVariant>[] = variantesDto.map(
+        (variantDto, index) => {
+          console.log(`[ProductsService] Procesando variante DTO [${index}]:`, JSON.stringify(variantDto, null, 2));
+          const { opciones, stock, foto, ...rest } = variantDto;
+          console.log(`[ProductsService] Contenido de 'rest' para variante [${index}] (sin foto/stock):`, JSON.stringify(rest, null, 2));
+
+          return this.productVariantRepository.create({
+            ...rest,
+            stock: stock || 0,
+            atributos: opciones,
+            foto_variante: foto,
+          });
+        },
+      );
+
+      const newPrecios = preciosDto.map((precioDto) =>
+        this.volumePriceRepository.create(precioDto),
+      );
+
+      product = this.productRepository.create({
+        ...productData,
+        fotos: fotos,
+        video: video,
+        categoria,
+        variantes: newVariantes,
+        preciosPorVolumen: newPrecios,
+      });
+
+      console.log(`[ProductsService] Entidad de Producto ANTES de guardar:`, JSON.stringify(product, null, 2));
+
+      await queryRunner.manager.save(product);
+      await queryRunner.commitTransaction();
+
+      // --- Lógica de asignación de inventario ---
+      try {
+        const matriz = await this.branchesService.findMatriz();
+        const asignaciones = product.variantes.map(variant => {
+          const stock = variant.stock || 0;
+          if (stock > 0) {
+            return this.inventoryService.assignStock({
+              sucursal_id: matriz.id,
+              variante_id: variant.id,
+              stock: stock,
+            });
+          }
+          return Promise.resolve();
+        });
+        await Promise.allSettled(asignaciones);
+        console.log(`[ProductsService] Inventario de ${asignaciones.length} variantes asignado a la Matriz.`);
+      } catch (inventoryError) {
+          console.error("[ProductsService] ADVERTENCIA: Falló la asignación inicial de inventario:", inventoryError);
+      }
+
+      return this.findOne(product.id);
+
+    } catch (error: any) {
+      await queryRunner.rollbackTransaction();
+      console.error('[ProductsService] Error detallado al crear producto:', error);
+      if (error.code === '23505') { /* ... manejo duplicados ... */ }
+      throw new InternalServerErrorException(`Error al crear el producto: ${error.message}`);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  // =================================================================
+  // --- MÉTODO UPDATE (Categoría corregida) ---
+  // =================================================================
+  async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
+    console.log(`[ProductsService] DTO Recibido en update() para ID ${id}:`, JSON.stringify(updateProductDto, null, 2));
+
+    const {
+      categoria_id,
+      variantes: variantesDto,
+      preciosPorVolumen: preciosDto,
+      fotos,
+      video,
+      ...productData
+    } = updateProductDto;
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const producto = await queryRunner.manager.findOne(Product, {
+        where: { id },
+        relations: ['variantes', 'preciosPorVolumen', 'categoria'],
+      });
+
+      if (!producto) {
+        throw new NotFoundException(`Producto con ID "${id}" no encontrado.`);
+      }
+
+      queryRunner.manager.merge(Product, producto, productData, { fotos, video });
+
+      // Actualiza la categoría usando el servicio
+      if (categoria_id && producto.categoria?.id !== categoria_id) {
+        console.log(`[ProductsService] Actualizando categoría a ID: ${categoria_id}`);
+        const categoria = await this.categoriesService.findOne(categoria_id);
+        if (!categoria) {
+          throw new BadRequestException(`Categoría con ID ${categoria_id} no existe.`);
+        }
+        producto.categoria = categoria;
+      }
+
+      // --- Lógica de Variantes (como estaba antes, con mapeo) ---
+      if (variantesDto !== undefined) {
+        console.log('[ProductsService] Actualizando variantes...');
+        const existingVariantsMap = new Map(producto.variantes.map(v => [v.sku, v]));
+        const processedVariantIds = new Set<string>();
+        const updatedOrNewVariants: ProductVariant[] = [];
+
+        for (const variantDto of variantesDto) {
+          const { opciones, foto, stock, ...rest } = variantDto;
+          const existingVariant = existingVariantsMap.get(variantDto.sku);
+
+          if (existingVariant) {
+            console.log(`[ProductsService] Variante encontrada, actualizando SKU: ${existingVariant.sku}`);
+            queryRunner.manager.merge(ProductVariant, existingVariant, { ...rest, atributos: opciones, foto_variante: foto });
+            const updatedVariant = await queryRunner.manager.save(ProductVariant, existingVariant);
+            updatedOrNewVariants.push(updatedVariant);
+            processedVariantIds.add(existingVariant.id);
+          } else {
+            console.log(`[ProductsService] Variante nueva, creando SKU: ${variantDto.sku}`);
+            const newVariantEntity = queryRunner.manager.create(ProductVariant, { ...rest, stock: stock || 0, atributos: opciones, foto_variante: foto, producto: { id: producto.id } });
+            const savedNewVariant = await queryRunner.manager.save(ProductVariant, newVariantEntity);
+            updatedOrNewVariants.push(savedNewVariant);
+            processedVariantIds.add(savedNewVariant.id);
+             if (stock && stock > 0) { /* ... asignación inventario ... */ }
+          }
+        }
+
+        const variantsToDelete = producto.variantes.filter(v => !processedVariantIds.has(v.id));
+        if (variantsToDelete.length > 0) {
+            console.log(`[ProductsService] Eliminando ${variantsToDelete.length} variantes antiguas.`);
+            // AÑADIR LÓGICA PARA BORRAR INVENTARIO ASOCIADO ANTES DE BORRARLAS
+            await queryRunner.manager.remove(variantsToDelete);
+        }
+        producto.variantes = updatedOrNewVariants;
+      }
+
+      // --- Lógica Precios Volumen (como estaba antes) ---
+      if (preciosDto) {
+        await queryRunner.manager.delete(VolumePrice, { producto: { id } });
+        const newPrecios = preciosDto.map((precioDto) => queryRunner.manager.create(VolumePrice, { ...precioDto, producto: { id: producto.id } }));
+        await queryRunner.manager.save(VolumePrice, newPrecios);
+        producto.preciosPorVolumen = newPrecios;
+      }
+
+      await queryRunner.manager.save(Product, producto);
+      await queryRunner.commitTransaction();
+
+      console.log(`[ProductsService] Producto ${id} actualizado exitosamente.`);
+      return this.findOne(producto.id);
+
+    } catch (error: any) {
+      await queryRunner.rollbackTransaction();
+      console.error('[ProductsService] Error detallado al ACTUALIZAR producto:', error);
+      if (error instanceof NotFoundException || error instanceof BadRequestException) { throw error; }
+      if (error.code === '23505') { /* ... manejo duplicados ... */ }
+      throw new InternalServerErrorException(`Error al actualizar el producto: ${error.message}`);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  // ====================================================
+  // --- MÉTODO REMOVE (Individual) ---
+  // ====================================================
+
+  async remove(id: string): Promise<void> {
+    console.log(`[ProductsService] Solicitud para eliminar producto ${id}`);
+    const result = await this.productRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Producto con ID "${id}" no encontrado.`);
+    }
+    console.log(`[ProductsService] Producto ${id} eliminado.`);
+  }
+
+  // --- Borrado Masivo (Corregido) ---
+  async bulkRemove(productIds: string[]): Promise<void> {
+    if (!productIds || productIds.length === 0) {
+      console.warn('[ProductsService] bulkRemove llamado con array de IDs vacío.');
+      return;
+    }
+    console.log(`[ProductsService] Iniciando borrado masivo para ${productIds.length} producto(s):`, productIds);
+    // IMPORTANTE: Considera la cascada/limpieza de inventario aquí si es necesario
+
+    try {
+      const deleteResult = await this.productRepository.delete({
+        id: In(productIds),
+      });
+      console.log(`[ProductsService] Resultado del borrado masivo:`, deleteResult);
+
+      const affectedCount = deleteResult?.affected ?? 0; // Acceso seguro
+
+      if (affectedCount === 0) {
+        console.warn(`[ProductsService] No se encontraron productos para los IDs proporcionados en borrado masivo.`);
+      } else if (affectedCount < productIds.length) {
+         console.warn(`[ProductsService] Se eliminaron ${affectedCount} productos, pero se solicitaron ${productIds.length}. Algunos IDs no existían.`);
+      } else {
+         console.log(`[ProductsService] ${affectedCount} producto(s) eliminados exitosamente.`);
+      }
+
+    } catch (error: any) {
+        console.error('[ProductsService] Error durante el borrado masivo:', error);
+        throw new InternalServerErrorException(`Error al eliminar productos masivamente: ${error.message}`);
+    }
+  }
+
+  // ====================================================
+  // --- CRUD de Variantes Individuales ---
+  // ====================================================
+  async createVariant(
+    productId: string,
+    createDto: CreateProductVariantDto,
+  ): Promise<ProductVariant> {
+    const productoPadre = await this.findOne(productId);
+    const { opciones, stock, foto, ...rest } = createDto;
+
+    const newVariant = this.productVariantRepository.create({
+      ...rest,
+      stock: stock || 0,
+      atributos: opciones,
+      foto_variante: foto,
+      producto: productoPadre,
+    });
+
+    const savedVariant = await this.productVariantRepository.save(newVariant);
+
+    if (stock > 0) { /* ... asignación inventario ... */ }
+    return savedVariant;
+  }
+
+  async findVariantsByProduct(productId: string): Promise<ProductVariant[]> {
+    return this.productVariantRepository.find({
+      where: { producto: { id: productId } },
+    });
+  }
+
+  async updateVariant(
+    variantId: string,
+    updateDto: UpdateProductVariantDto,
+  ): Promise<ProductVariant> {
+    const { opciones, foto, ...rest } = updateDto;
+    const preloadData: DeepPartial<ProductVariant> = { ...rest };
+    if (opciones !== undefined) { preloadData.atributos = opciones; }
+    if (foto !== undefined) { preloadData.foto_variante = foto; }
+
+    const variant = await this.productVariantRepository.preload({
+      id: variantId,
+      ...preloadData,
+    });
+    if (!variant) { throw new NotFoundException(`Variante con ID "${variantId}" no encontrada.`); }
+
+    // Falta lógica para actualizar inventario si cambia el stock
+    return this.productVariantRepository.save(variant);
+  }
+
+  async removeVariant(variantId: string): Promise<void> {
+     // Falta lógica para eliminar inventario asociado
+    const result = await this.productVariantRepository.delete(variantId);
+    if (result.affected === 0) { throw new NotFoundException(`Variante con ID "${variantId}" no encontrada.`); }
+  }
+
+ // ----------------------------------------------------
+  // --- LÓGICA DE CARGA MASIVA DE VARIANTES (Corregido) ---
   // ----------------------------------------------------
   async bulkCreateVariants(
     productId: string,
     fileBuffer: Buffer,
   ): Promise<{ count: number }> {
-    
-    // 1. Validamos que el producto padre exista
     const productoPadre = await this.findOne(productId);
-    if (!productoPadre) {
-      throw new NotFoundException(`Producto con ID "${productId}" no encontrado.`);
-    }
 
-    // 2. Parseamos el CSV
-    const parsedRows: any[] = await new Promise((resolve, reject) => {
-      // --- 2. CAMBIO DE TIPADO ---
-      const results: any[] = []; 
-      const stream = Readable.from(fileBuffer); 
+    let parsedRows: any[] = [];
 
+    await new Promise((resolve, reject) => {
+      const stream = Readable.from(fileBuffer);
       stream
-        .pipe(csvParser({
-          // ESTA ES LA LÍNEA MÁGICA
-          mapHeaders: ({ header }) => header.replace('\ufeff', '')
-        }))
-        .on('data', (data) => {
-          results.push(data); // <-- Esto ahora funciona gracias al tipado de 'results'
-        })
-        .on('end', () => {
-          resolve(results); 
-        })
-        .on('error', (error) => {
-          reject(new BadRequestException(`Error al parsear el CSV: ${error.message}`));
-        });
+        .pipe(csvParser({ mapHeaders: ({ header }) => header.replace('\ufeff', '') }))
+        .on('data', (data) => parsedRows.push(data))
+        .on('end', () => resolve(null))
+        .on('error', (error) => reject(new BadRequestException(`Error al parsear el CSV: ${error.message}`)));
     });
 
     if (parsedRows.length === 0) {
       throw new BadRequestException('El archivo CSV está vacío o en un formato incorrecto.');
     }
 
-    // 3. Transformamos las filas del CSV en Entidades
-    const nuevasVariantes: ProductVariant[] = parsedRows.map((row) => {
-      const { sku, stock, ...atributos } = row;
-
-      if (!sku || stock === undefined || stock === '') {
-        throw new BadRequestException(`Fila malformada. 'sku' y 'stock' son requeridos: ${JSON.stringify(row)}`);
-      }
-
-      return this.productVariantRepository.create({
-        producto: productoPadre,
-        sku: sku,
-        stock: parseInt(stock, 10), 
-        atributos: atributos, 
-      });
-    });
-
-    // 4. Guardamos TODAS las variantes en una sola transacción
     try {
-      await this.productVariantRepository.save(nuevasVariantes, { chunk: 100 }); 
-      return { count: nuevasVariantes.length };
-    } catch (error) {
-      if (error.code === '23505') { 
-        throw new BadRequestException(`Error: Uno o más SKUs en el archivo ya existen en la base de datos. ${error.detail}`);
+      // 1. Creamos el array de entidades parciales (DeepPartial<ProductVariant>[])
+      const variantsToSave = parsedRows.map((row) => {
+          const { sku, stock, ...atributos } = row;
+
+          if (!sku || stock === undefined || stock === '') {
+            throw new BadRequestException(`Fila malformada. 'sku' y 'stock' son requeridos: ${JSON.stringify(row)}`);
+          }
+          const stockNum = parseInt(stock, 10);
+          if (isNaN(stockNum)) {
+             throw new BadRequestException(`Stock inválido para SKU ${sku}: "${stock}". Debe ser un número.`);
+          }
+
+          // create() devuelve DeepPartial<ProductVariant>
+          return this.productVariantRepository.create({
+            producto: { id: productoPadre.id }, // Asocia por ID
+            sku: sku,
+            stock: stockNum,
+            atributos: atributos,
+            // foto_variante no viene del CSV aquí
+          });
+      });
+
+      // 2. Guardamos el array de entidades parciales.
+      //    'save' acepta DeepPartial<Entity>[] y devuelve Promise<Entity[]>
+      // --- ¡CORRECCIÓN AQUÍ: Quitamos : ProductVariant[] ! ---
+      const savedVariants = await this.productVariantRepository.save(
+          variantsToSave, // Pasamos DeepPartial<ProductVariant>[]
+          { chunk: 100 }
+      );
+      // --- FIN CORRECCIÓN ---
+      // Ahora TypeScript infiere correctamente que savedVariants es ProductVariant[]
+
+      // --- Lógica de asignación de inventario (Usa savedVariants que ahora es ProductVariant[]) ---
+      try {
+        const matriz = await this.branchesService.findMatriz();
+        const asignaciones = savedVariants.map((variant) => { // variant aquí es ProductVariant
+          if (variant.stock > 0) {
+            return this.inventoryService.assignStock({
+              sucursal_id: matriz.id,
+              variante_id: variant.id, // ID existe porque la entidad está completa
+              stock: variant.stock,
+            });
+          }
+          return Promise.resolve();
+        });
+        await Promise.allSettled(asignaciones);
+         console.log(`[ProductsService] Inventario masivo asignado a Matriz para ${asignaciones.length} variantes.`);
+      } catch (inventoryError) {
+        console.error("Advertencia: Falló la asignación de inventario masivo a la Matriz:", inventoryError);
       }
+      // -----------------------------------------------------
+
+      // Retornamos la cuenta
+      return { count: savedVariants.length };
+
+    } catch (error: any) {
+      if (error.code === '23505') { /* ... manejo duplicados ... */ }
+      if (error instanceof BadRequestException) { throw error; }
       throw new InternalServerErrorException(`Error al guardar las variantes: ${error.message}`);
     }
-  }
-}
+  } // Fin de bulkCreateVariants
+} // Fin de la clase

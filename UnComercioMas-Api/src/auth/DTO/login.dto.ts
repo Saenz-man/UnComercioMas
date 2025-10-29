@@ -1,6 +1,6 @@
 // src/auth/dto/login.dto.ts
 
-import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, MinLength, IsString } from 'class-validator'; // <-- Añadir IsString
 import { ApiProperty } from '@nestjs/swagger'; 
 
 export class LoginDto {
@@ -11,7 +11,8 @@ export class LoginDto {
   email: string;
 
   @ApiProperty({ example: 'Admin12345', description: 'Contraseña del usuario.' })
+  @IsString() // <-- Añadir IsString
   @IsNotEmpty({ message: 'La contraseña es obligatoria.' })
   @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres.' })
-  hash_contrasena: string; // Usamos el mismo nombre para simplificar la toma de datos
+  password: string; // <-- Cambiar el nombre aquí
 }
