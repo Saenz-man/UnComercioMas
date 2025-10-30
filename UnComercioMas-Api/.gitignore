@@ -1,26 +1,19 @@
 ----------------------------------------------------
-
 1. DEPENDENCIAS Y ARTEFACTOS DE BUILD
-
 ----------------------------------------------------
 
-Directorio de módulos de Node.js
-
+# Directorio de módulos de Node.js
 /node_modules
 
-Directorio de compilación de TypeScript (generado a partir de .ts)
-
+# Directorios de compilación de TypeScript o build
 /dist
 /build
 
 ----------------------------------------------------
-
 2. ARCHIVOS DE CONFIGURACIÓN SENSIBLE Y DE ENTORNO
-
 ----------------------------------------------------
 
-Variables de entorno (¡CRÍTICO! Contiene JWT_SECRET, DB_PASSWORD)
-
+# Variables de entorno (¡CRÍTICO! Contiene JWT_SECRET, DB_PASSWORD)
 .env
 .env.development.local
 .env.test.local
@@ -28,13 +21,10 @@ Variables de entorno (¡CRÍTICO! Contiene JWT_SECRET, DB_PASSWORD)
 .env.local
 
 ----------------------------------------------------
-
 3. ARCHIVOS DE REGISTRO Y CACHE
-
 ----------------------------------------------------
 
-Registros de npm/yarn/pnpm y logs de la aplicación
-
+# Registros de npm/yarn/pnpm y logs de la aplicación
 .log
 npm-debug.log
 yarn-debug.log*
@@ -43,57 +33,45 @@ pnpm-debug.log*
 lerna-debug.log*
 logs
 
-Directorios temporales
-
+# Directorios temporales
 .temp
 .tmp
 
-Datos de runtime
-
+# Datos de runtime
 pids
 *.pid
 *.seed
 *.pid.lock
 
 ----------------------------------------------------
-
 4. SISTEMA OPERATIVO Y PRUEBAS
-
 ----------------------------------------------------
 
-Archivos de caché del SO
-
+# Archivos de caché del SO
 .DS_Store
 
-Cobertura de pruebas
-
+# Cobertura de pruebas
 /coverage
 /.nyc_output
 /.jest/
 
-Archivos de diagnóstico de Node.js
-
+# Archivos de diagnóstico de Node.js
 report.[0-9].[0-9].[0-9].[0-9].json
 
 ----------------------------------------------------
-
 5. CONFIGURACIÓN DE EDITORES E IDEs
-
 ----------------------------------------------------
 
-Directorio de configuración de VS Code
-
+# Directorio de configuración de VS Code
 .vscode/
 
-Excepciones para archivos compartidos en el equipo
-
+# Excepciones para archivos compartidos en el equipo
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-Otros IDEs y editores
-
+# Otros IDEs y editores
 /.idea
 .project
 .classpath
@@ -103,3 +81,21 @@ Otros IDEs y editores
 *.sublime-workspace
 .bash_history
 .zsh_history
+
+----------------------------------------------------
+6. ARCHIVOS DE SUBIDAS, IMÁGENES Y BASURA
+----------------------------------------------------
+
+# Archivos de uploads que no quieres subir
+/uploads/*.png
+/uploads/*.jpg
+/uploads/*.jpeg
+/uploads/*.gif
+/uploads/*.webp
+/uploads/*.svg
+/uploads/*.pdf
+/uploads/*.zip
+/uploads/*.tmp
+
+# Directorios temporales de uploads
+/uploads/temp/
