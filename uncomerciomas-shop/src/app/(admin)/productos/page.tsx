@@ -12,7 +12,6 @@ export default async function ProductsListPage() {
   // Pre-cargamos la lista de productos en el servidor
   await queryClient.prefetchQuery({
     queryKey: ['products'],
-    queryFn: ProductService.getAll, // Usa la función de tu servicio
   });
 
   return (

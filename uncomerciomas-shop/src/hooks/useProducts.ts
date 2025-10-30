@@ -8,12 +8,12 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 // ======================================================
-// --- Hook: Obtener todos los productos ---
+// --- Hook: Obtener todos los productos (con búsqueda opcional) ---
 // ======================================================
-export const useProducts = () => {
+export const useProducts = (search?: string) => {
   return useQuery<Product[]>({
-    queryKey: ['products'],
-    queryFn: ProductService.getAll,
+    queryKey: ['products', search], // cachea por término de búsqueda
+    queryFn: () => ProductService.getAll(search),
   });
 };
 
@@ -43,7 +43,8 @@ export const useCreateProduct = () => {
     },
 
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al crear producto.';
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Error desconocido al crear producto.';
       toast.error(`Error al crear producto: ${errorMessage}`);
     },
   });
@@ -69,7 +70,8 @@ export const useDeleteProduct = () => {
     },
 
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al eliminar producto.';
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Error desconocido al eliminar producto.';
       toast.error(`Error al eliminar producto: ${errorMessage}`);
     },
   });
@@ -99,7 +101,8 @@ export const useUpdateProduct = () => {
     },
 
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al actualizar producto.';
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Error desconocido al actualizar producto.';
       toast.error(`Error al actualizar producto: ${errorMessage}`);
     },
   });
@@ -124,7 +127,8 @@ export const useBulkDeleteProducts = () => {
     },
 
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al eliminar productos.';
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Error desconocido al eliminar productos.';
       toast.error(`Error al eliminar masivamente: ${errorMessage}`);
       console.error('[useBulkDeleteProducts] Error:', error);
     },
@@ -146,7 +150,8 @@ export const useDeleteVariant = () => {
     },
 
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al eliminar variante.';
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Error desconocido al eliminar variante.';
       toast.error(`Error al eliminar variante: ${errorMessage}`);
     },
   });

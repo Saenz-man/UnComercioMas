@@ -6,10 +6,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useProducts } from "@/hooks/useProducts";
+import { useProducts, useBulkDeleteProducts, useDeleteVariant } from "@/hooks/useProducts";
 import Link from "next/link";
-import { Pencil, Trash2, PackageSearch } from "lucide-react";
-import { useBulkDeleteProducts, useDeleteVariant } from "@/hooks/useProducts";
+import { Pencil, PackageSearch } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 // --- Tipos ---
@@ -45,7 +44,12 @@ const formatPrice = (price: number | string | null | undefined): string => {
 };
 
 export function ProductsTable() {
-  const { data: products, isLoading, error } = useProducts();
+  // 🧭 Estado de búsqueda
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // 🧠 Hook con búsqueda
+  const { data: products, isLoading, error } = useProducts(searchTerm);
+
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
   const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
@@ -84,6 +88,17 @@ export function ProductsTable() {
 
   return (
     <div className="space-y-4">
+      {/* 🔍 Barra de búsqueda */}
+      <div className="flex items-center justify-between mb-2">
+        <input
+          type="text"
+          placeholder="Buscar productos..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="border border-gray-300 rounded-md px-3 py-2 w-full max-w-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </div>
+
       {noProducts ? (
         <div className="flex flex-col items-center justify-center p-10 border rounded-lg text-gray-500"> 
           <PackageSearch size={48} className="mb-4 text-muted-foreground" /> No hay productos registrados. 
@@ -149,14 +164,14 @@ export function ProductsTable() {
                             onClick={(e) => e.stopPropagation()}
                           />
                         </TableCell>
-                        <TableCell className="cursor-pointer">
+                        <TableCell>
                           <img src={mainPhotoUrl} alt={product.nombre} width={60} height={60} className="rounded object-cover aspect-square border" />
                         </TableCell>
-                        <TableCell className="font-medium cursor-pointer">{product.nombre}</TableCell>
-                        <TableCell className="cursor-pointer">{product.categoria?.nombre || "N/A"}</TableCell>
-                        <TableCell className="cursor-pointer">{product.modelo || "-"}</TableCell>
-                        <TableCell className="text-right cursor-pointer">{formatPrice(precioBaseNum)}</TableCell>
-                        <TableCell className="text-right cursor-pointer text-xs text-primary font-semibold">
+                        <TableCell className="font-medium">{product.nombre}</TableCell>
+                        <TableCell>{product.categoria?.nombre || "N/A"}</TableCell>
+                        <TableCell>{product.modelo || "-"}</TableCell>
+                        <TableCell className="text-right">{formatPrice(precioBaseNum)}</TableCell>
+                        <TableCell className="text-right text-xs text-primary font-semibold">
                           {product.preciosPorVolumen && product.preciosPorVolumen.length > 0 ? (
                             <div className="flex flex-col items-end">
                               {product.preciosPorVolumen.map((vp, idx) => (
@@ -167,14 +182,14 @@ export function ProductsTable() {
                             <span>N/A</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-center cursor-pointer">{product.variantes?.length || 0}</TableCell>
-                        <TableCell className="text-center font-semibold cursor-pointer">{totalStock}</TableCell>
+                        <TableCell className="text-center">{product.variantes?.length || 0}</TableCell>
+                        <TableCell className="text-center font-semibold">{totalStock}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button variant="outline" size="icon" title="Editar Producto" onClick={(e) => e.stopPropagation()}> 
                             <Link href={`/productos/${product.id}/edit`}> <Pencil className="h-4 w-4" /> </Link> 
                           </Button>
                         </TableCell>
-                        <TableCell className="text-center cursor-pointer">
+                        <TableCell className="text-center">
                           <Button variant="ghost" size="icon">{isExpanded ? "▲" : "▼"}</Button>
                         </TableCell>
                       </TableRow>

@@ -27,17 +27,20 @@ const getMatrizId = (): string | null => {
 // Mantenemos tu nombre de exportación 'ProductService'
 export const ProductService = {
   /** Obtiene todos los productos "Padre" */
-  async getAll(): Promise<Product[]> { /* ... tu código ... */ 
-    console.log("[ProductService] Obteniendo todos los productos...");
-    try {
-      const { data } = await api.get<Product[]>('/products'); 
-      console.log("[ProductService] Productos obtenidos:", data);
-      return data;
-    } catch (error) {
-      console.error("[ProductService] Error al obtener productos:", error);
-      throw error;
-    }
-  },
+  /** Obtiene todos los productos "Padre" (con soporte de búsqueda opcional) */
+async getAll(search?: string): Promise<Product[]> {
+  console.log("[ProductService] Obteniendo todos los productos...", search ? `(filtro: ${search})` : "");
+  try {
+    // Si 'search' viene con valor, lo enviamos como query param
+    const params = search ? { search } : {};
+    const { data } = await api.get<Product[]>('/products', { params });
+    console.log("[ProductService] Productos obtenidos:", data);
+    return data;
+  } catch (error) {
+    console.error("[ProductService] Error al obtener productos:", error);
+    throw error;
+  }
+},
 
   /** Obtiene un producto "Padre" por su ID */
    async getById(id: string): Promise<Product> { /* ... tu código ... */ 
@@ -203,4 +206,5 @@ export const ProductService = {
        throw error;
      }
   }
+  
 };
