@@ -1,7 +1,8 @@
 // src/hooks/useProductVariants.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ProductService, VariantPayload } from '@/services/product.service';
-import type { ProductVariant } from '../types/product-variant.types';
+import { ProductService } from '@/services/product.service';
+// Importamos los tipos correctos definidos en el archivo de tipos
+import type { ProductVariant, CreateProductVariantPayload } from '../types/product-variant.types';
 
 // Clave base para las queries de variantes de un producto
 const variantsQueryKey = (productId: string | null | undefined) => ['productVariants', productId];
@@ -23,7 +24,8 @@ export const useProductVariants = (productId: string | null | undefined) => {
 export const useCreateVariant = (productId: string | null | undefined) => {
   const queryClient = useQueryClient();
 
-  return useMutation<ProductVariant, Error, VariantPayload>({
+  // Usamos 'CreateProductVariantPayload' como el tipo de entrada (Error, Payload)
+  return useMutation<ProductVariant, Error, CreateProductVariantPayload>({
     // La función de mutación necesita el productId y el payload
     mutationFn: (payload) => ProductService.createVariant(productId!, payload),
     onSuccess: () => {
@@ -41,7 +43,8 @@ export const useCreateVariant = (productId: string | null | undefined) => {
 export const useUpdateVariant = (productId: string | null | undefined) => {
   const queryClient = useQueryClient();
 
-  return useMutation<ProductVariant, Error, { variantId: string; payload: Partial<VariantPayload> }>({
+  // Usamos 'Partial<CreateProductVariantPayload>' para el payload de actualización
+  return useMutation<ProductVariant, Error, { variantId: string; payload: Partial<CreateProductVariantPayload> }>({
     mutationFn: ({ variantId, payload }) => ProductService.updateVariant(variantId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: variantsQueryKey(productId) });

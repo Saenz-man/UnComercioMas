@@ -1,14 +1,30 @@
-// src/types/product-variant.types.ts
+/**
+ * Define los tipos de datos para las Variantes de Producto (SKUs).
+ */
 
-// Define la estructura del objeto ProductVariant que recibes de la API
+// --- TIPO DE RESPUESTA ---
+// Lo que la API devuelve anidado en el producto (basado en tu respuesta 201)
 export interface ProductVariant {
   id: string;
   sku: string;
   stock: number;
-  // Atributos que definen la variante (ej: { talla: 'S', color: 'Rojo' })
+  // La API devuelve 'atributos'
   atributos: Record<string, string>;
-  foto_variante: string | null; // URL opcional de la foto específica
-
-  // Puedes incluir el ID del producto padre si tu API lo devuelve
-  // producto_id?: string;
+  // La API devuelve 'foto_variante'
+  foto_variante: string | null;
+  precio: string
 }
+
+// --- TIPO DE ENVÍO (Payload) ---
+// Lo que el formulario envía (basado en tu JSON de envío)
+export interface CreateProductVariantPayload {
+  sku: string;
+  stock: number;
+  // El formulario envía 'foto'
+  foto: string | null;
+  // El formulario envía 'opciones' (que el backend renombra a 'atributos')
+  opciones: Record<string, string>;
+  precio?: number; // El precio individual de la variante
+  
+}
+

@@ -1,76 +1,153 @@
-// src/hooks/useProducts.ts
+/**
+ * Hooks de React Query para el módulo de Productos.
+ */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ProductService, ProductPayload } from '@/services/product.service';
-import type { Product } from '@/types/product.types';
+import { ProductService } from '@/services/product.service';
+import { CreateProductPayload, Product } from '@/types/product.types';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
-// --- Hook para OBTENER todos los productos ---
+// ======================================================
+// --- Hook: Obtener todos los productos ---
+// ======================================================
 export const useProducts = () => {
-  return useQuery<Product[], Error>({
-    queryKey: ['products'], // Clave para la caché
-    queryFn: ProductService.getAll, // Llama al método del servicio
-    staleTime: 5 * 60 * 1000, // Datos frescos por 5 mins (opcional)
+  return useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: ProductService.getAll,
   });
 };
 
-// --- Hook para OBTENER un producto por ID ---
-// Útil para la página de edición o detalle
-export const useProductById = (productId: string | null) => {
-  return useQuery<Product, Error>({
-    queryKey: ['product', productId], // Clave incluye el ID
-    queryFn: () => ProductService.getById(productId!), // Llama al método del servicio
-    enabled: !!productId, // Solo ejecuta la consulta si productId no es null
-    staleTime: 1 * 60 * 1000, // Datos frescos por 1 min (opcional)
+// ======================================================
+// --- Hook: Obtener un solo producto ---
+// ======================================================
+export const useProduct = (id?: string) => {
+  return useQuery<Product>({
+    queryKey: ['product', id],
+    queryFn: () => ProductService.getById(id!),
+    enabled: !!id,
   });
 };
 
-// --- Hook para CREAR un producto ---
+// ======================================================
+// --- Hook: Crear producto ---
+// ======================================================
 export const useCreateProduct = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<Product, Error, ProductPayload>({
-    mutationFn: ProductService.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] }); // Invalida la lista
-      console.log("Producto creado, caché invalidada.");
-    },
-    onError: (error) => {
-      console.error("Error al crear producto:", error);
-    }
-  });
-};
+  return useMutation({
+    mutationFn: (productData: CreateProductPayload) => ProductService.create(productData),
 
-// --- Hook para ACTUALIZAR un producto ---
-export const useUpdateProduct = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation<Product, Error, { id: string; payload: Partial<ProductPayload> }>({
-    mutationFn: ({ id, payload }) => ProductService.update(id, payload),
-    onSuccess: (updatedProduct) => {
-      // Invalida la lista y la vista individual
+    onSuccess: (newProduct: Product) => {
+      toast.success(`Producto "${newProduct.nombre}" creado exitosamente.`);
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['product', updatedProduct.id] }); 
-      // Opcional: Actualizar caché directamente
-      // queryClient.setQueryData(['products'], (old: Product[] | undefined) => /* ... */ );
-      console.log("Producto actualizado, caché invalidada.");
     },
-    onError: (error) => {
-      console.error("Error al actualizar producto:", error);
-    }
+
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al crear producto.';
+      toast.error(`Error al crear producto: ${errorMessage}`);
+    },
   });
 };
 
-// --- Hook para ELIMINAR un producto ---
+// ======================================================
+// --- Hook: Eliminar producto individual ---
+// ======================================================
 export const useDeleteProduct = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<void, Error, string>({ // Payload es el ID (string)
-    mutationFn: ProductService.delete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] }); // Invalida la lista
-      console.log("Producto eliminado, caché invalidada.");
+  return useMutation({
+    mutationFn: (productId: string) => ProductService.delete(productId),
+
+    onSuccess: (_, productId) => {
+      toast.success('Producto eliminado con éxito.');
+      queryClient.setQueryData<Product[] | undefined>(
+        ['products'],
+        (oldData) => oldData?.filter((p) => p.id !== productId)
+      );
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.removeQueries({ queryKey: ['product', productId] });
     },
-    onError: (error) => {
-      console.error("Error al eliminar producto:", error);
-    }
+
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al eliminar producto.';
+      toast.error(`Error al eliminar producto: ${errorMessage}`);
+    },
+  });
+};
+
+// ======================================================
+// --- Hook: Actualizar producto ---
+// ======================================================
+export const useUpdateProduct = () => {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: ({
+      productId,
+      updateData,
+    }: {
+      productId: string;
+      updateData: Partial<CreateProductPayload>;
+    }) => ProductService.update(productId, updateData),
+
+    onSuccess: (updatedProduct: Product) => {
+      toast.success(`Producto "${updatedProduct.nombre}" actualizado con éxito.`);
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['product', updatedProduct.id] });
+      router.push('/productos');
+    },
+
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al actualizar producto.';
+      toast.error(`Error al actualizar producto: ${errorMessage}`);
+    },
+  });
+};
+
+// ======================================================
+// --- Hook: Eliminar múltiples productos (Bulk Delete) ---
+// ======================================================
+export const useBulkDeleteProducts = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (productIds: string[]) => ProductService.bulkRemove(productIds),
+
+    onSuccess: (_, productIds) => {
+      toast.success(`Se eliminaron ${productIds.length} productos.`);
+      queryClient.setQueryData<Product[] | undefined>(
+        ['products'],
+        (oldData) => oldData?.filter((p) => !productIds.includes(p.id))
+      );
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al eliminar productos.';
+      toast.error(`Error al eliminar masivamente: ${errorMessage}`);
+      console.error('[useBulkDeleteProducts] Error:', error);
+    },
+  });
+};
+
+// ======================================================
+// --- Hook: Eliminar variante individual ---
+// ======================================================
+export const useDeleteVariant = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (variantId: string) => ProductService.deleteVariant(variantId),
+
+    onSuccess: () => {
+      toast.success('Variante eliminada con éxito.');
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al eliminar variante.';
+      toast.error(`Error al eliminar variante: ${errorMessage}`);
+    },
   });
 };

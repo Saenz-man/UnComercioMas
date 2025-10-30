@@ -1,12 +1,21 @@
-// src/types/category.types.ts
+/**
+ * Define los tipos de datos para las Categorías.
+ */
 
+// --- TIPO DE RESPUESTA ---
+// Lo que la API devuelve (basado en tu POST de categorías)
 export interface Category {
   id: string;
   nombre: string;
   slug: string;
   id_padre: string | null;
-  // Estos son opcionales, dependen de si tu API los devuelve al hacer GET /categories
-  // Si tu API devuelve una lista plana, puedes quitarlos o mantenerlos como opcionales.
-  parent?: Category | null; 
-  children?: Category[];   
 }
+
+// --- TIPO DE ENVÍO (Payload) ---
+// Lo que el formulario de "Crear Categoría" enviaría
+export interface CreateCategoryPayload {
+  nombre: string;
+  slug: string;
+  id_padre?: string | null;
+}
+
