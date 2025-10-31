@@ -14,6 +14,7 @@ import {
 import { InventoryService } from './inventory.service';
 import { AssignStockDto } from './DTO/assign-stock.dto';
 import { UpdateStockDto } from './DTO/update-stock.dto';
+import { TransferStockDto } from './DTO/transfer-stock.dto'; // <-- NUEVA IMPORTACIÓN
 
 // --- Imports de Seguridad y Swagger ---
 import {
@@ -29,11 +30,37 @@ import { Roles } from '../auth/Decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 
 @ApiTags('Inventario / Stock por Sucursal')
-@ApiBearerAuth() 
-@UseGuards(AuthGuard('jwt'), RolesGuard) 
+@ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
+
+  // ===========================================
+  // ✅ NUEVO ENDPOINT DE TRANSFERENCIA
+  // ===========================================
+  @Post('transfer')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'ADMIN: Transfiere stock entre dos sucursales',
+  })
+  @ApiBody({ type: TransferStockDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Transferencia completada y registrada.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Stock insuficiente, o sucursales idénticas.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'La sucursal de origen, destino o la variante no existen.',
+  })
+  transferStock(@Body() transferDto: TransferStockDto) {
+    return this.inventoryService.transferStock(transferDto);
+  }
 
   // --- ASIGNAR STOCK INICIAL (POST) ---
   @Post('assign')
@@ -64,7 +91,10 @@ export class InventoryController {
   })
   @ApiBody({ type: UpdateStockDto })
   @ApiResponse({ status: 200, description: 'Stock actualizado.' })
-  @ApiResponse({ status: 404, description: 'Entrada de inventario no encontrada.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Entrada de inventario no encontrada.',
+  })
   updateStock(
     @Param('inventoryId') inventoryId: string,
     @Body() updateDto: UpdateStockDto,
@@ -74,8 +104,7 @@ export class InventoryController {
 
   // --- CONSULTAR STOCK POR SKU (GET) ---
   @Get('variant/:varianteId')
-  // --- CAMBIO AQUÍ: 'UserRole.USER' ELIMINADO ---
-  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN) 
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Consulta el stock de un SKU en todas las sucursales',
@@ -88,7 +117,6 @@ export class InventoryController {
 
   // --- CONSULTAR STOCK POR SUCURSAL (GET) ---
   @Get('branch/:sucursalId')
-  // --- CAMBIO AQUÍ: 'UserRole.USER' ELIMINADO ---
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Consulta todo el inventario de una sucursal' })
@@ -106,7 +134,10 @@ export class InventoryController {
     summary: 'ADMIN: Elimina una entrada de inventario (desasigna SKU de sucursal)',
   })
   @ApiResponse({ status: 204, description: 'Entrada eliminada.' })
-  @ApiResponse({ status: 404, description: 'Entrada de inventario no encontrada.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Entrada de inventario no encontrada.',
+  })
   removeStockEntry(@Param('inventoryId') inventoryId: string) {
     return this.inventoryService.removeStockEntry(inventoryId);
   }

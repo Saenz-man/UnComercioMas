@@ -25,6 +25,17 @@ import { InventoryService } from '../inventory/inventory.service';
 import csvParser = require('csv-parser');
 import { Readable } from 'stream';
 
+
+// --- FUNCIÓN DE VERIFICACIÓN DE UUID (NUEVA) ---
+const isUuid = (value: string): boolean => {
+  // Patrón simple de UUID v4 (36 caracteres, incluyendo guiones)
+  // Utilizamos una regex simple para evitar pasar cadenas cortas como 'p'
+  // El i al final es para que sea insensible a mayúsculas/minúsculas (Aunque UUID v4 es case-insensitive)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return value.length === 36 && uuidRegex.test(value);
+};
+// ------------------------------------------------
+
 @Injectable()
 // --- ¡CORRECCIÓN AQUÍ! ---
 export class ProductsService { // <-- Añadido 'export'
@@ -43,14 +54,55 @@ export class ProductsService { // <-- Añadido 'export'
     private readonly dataSource: DataSource,
   ) {}
 
-  // ====================================================
-  // --- MÉTODOS DE LECTURA ---
-  // ====================================================
-  async findAll(): Promise<Product[]> {
-    return this.productRepository.find({
-      relations: ['categoria', 'variantes', 'preciosPorVolumen'],
+// ====================================================
+// --- MÉTODOS DE LECTURA (CORREGIDO) ---
+// ====================================================
+async findAll(search?: string): Promise<Product[]> {
+  const query = this.productRepository
+    .createQueryBuilder('product')
+    .leftJoinAndSelect('product.categoria', 'categoria')
+    .leftJoinAndSelect('product.variantes', 'variantes')
+    .leftJoinAndSelect('product.preciosPorVolumen', 'preciosPorVolumen');
+
+  if (search && search.trim() !== '') {
+    const searchTerms = search.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0);
+    
+    // Inicializa una condición que siempre es falsa (1=0)
+    query.where('1=0'); 
+
+    searchTerms.forEach((term, index) => {
+      const paramName = `searchParam_${index}`;
+      const lowerSearch = `%${term}%`;
+      
+      // 1. Condición base (para LIKE)
+      let condition = `
+        (LOWER(product.nombre) LIKE :${paramName}
+         OR LOWER(product.slug) LIKE :${paramName}
+         OR LOWER(product.modelo) LIKE :${paramName}
+         OR LOWER(categoria.nombre) LIKE :${paramName} 
+         OR LOWER(variantes.sku) LIKE :${paramName}
+      `;
+      
+      const parameters: Record<string, any> = { [paramName]: lowerSearch };
+
+      // 2. CORRECCIÓN CLAVE: Solo añadimos la búsqueda por ID si el término es un UUID válido.
+      // Esto evita el error 22P02 de PostgreSQL.
+      if (isUuid(term)) {
+          // Si es un UUID, lo buscamos exactamente. Usamos el término original (case-sensitive) para el ID.
+          condition += ` OR product.id = :searchRaw`;
+          parameters.searchRaw = search; 
+      }
+      
+      condition += `)`; // Cierra el paréntesis de la condición OR
+      
+      // 3. Aplicamos la condición con OR a la consulta principal.
+      query.orWhere(condition, parameters);
     });
   }
+
+  return query.getMany();
+}
+
 
   async findOne(id: string): Promise<Product> {
     const producto = await this.productRepository.findOne({

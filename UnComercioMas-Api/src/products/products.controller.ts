@@ -15,6 +15,7 @@ import {
   BadRequestException,
   ValidationPipe,
   ParseUUIDPipe, // <-- *** CORRECCIÓN AQUÍ: Importación añadida ***
+  Query,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 
@@ -74,10 +75,10 @@ export class ProductsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'PÚBLICO: Obtiene todos los productos "Padre"' })
-  findAll() {
-    return this.productsService.findAll();
-  }
+findAll(@Query('search') search?: string) {
+  return this.productsService.findAll(search);
+}
+
 
   // Ahora ParseUUIDPipe se reconoce
   @Get(':id')
