@@ -21,7 +21,7 @@ import {
 // Define los enlaces del sidebar
 const sidebarLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/categorias', label: 'Categorías', icon: Folder },
+  { href: '/categorias', label: 'Colecciones', icon: Folder },
   { href: '/sucursales', label: 'Sucursales', icon: Building },
   { href: '/productos', label: 'Productos', icon: Handbag }, 
   { href: '/ordenes', label: 'Órdenes', icon: ShoppingCart },
