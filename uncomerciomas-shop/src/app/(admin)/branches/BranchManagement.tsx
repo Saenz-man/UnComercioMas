@@ -1,9 +1,8 @@
-// src/app/(admin)/branches/BranchManagement.tsx
 "use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner'; // Import toast para las notificaciones
+import { toast } from 'sonner';
 
 // --- Tus Hooks ---
 import {
@@ -15,6 +14,9 @@ import {
 import type { Branch } from '@/types/branch.types';
 import type { BranchPayload } from '@/services/branch.service';
 import { BranchForm } from './BranchForm';
+
+// ✅ 1. IMPORTA TU CLIENTE API
+import { api } from '@/lib/api'; // (O la ruta a tu cliente axios/api)
 
 // --- UI Components ---
 import {
@@ -28,18 +30,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
-} from "@/components/ui/alert-dialog"; // Mantenemos para eliminar sucursal
+} from "@/components/ui/alert-dialog";
 import {
   Plus, Warehouse, MoreVertical, Edit, Trash2, Package,
-  DollarSign, User, AlertTriangle, Star // Star añadido
+  DollarSign, User, AlertTriangle, Star
 } from 'lucide-react';
 
-// --- Imports de Gráficas (Si las mantienes) ---
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Pie, Cell, PieChart
-} from 'recharts';
-
-// --- Icono de Matriz ---
+// ... (Componente StarIcon se mantiene igual) ...
 const StarIcon = () => (
   <span
     title="Sucursal Matriz"
@@ -49,17 +46,9 @@ const StarIcon = () => (
   </span>
 );
 
-// --- FUNCIÓN SIMULADA PARA VALIDAR INVENTARIO (¡REEMPLAZAR!) ---
-const checkInventoryStatus = async (branchId: string): Promise<boolean> => {
-    console.log(`Verificando inventario para sucursal: ${branchId}`);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    // SIMULACIÓN: Reemplaza 'ID_SUCURSAL_CON_INVENTARIO_AQUI' con un ID real de prueba
-    const branchWithInventoryId = "ID_SUCURSAL_CON_INVENTARIO_AQUI";
-    const hasInventory = branchId === branchWithInventoryId;
-    console.log(`Sucursal ${branchId} tiene inventario: ${hasInventory}`);
-    return hasInventory;
-}
-// ------------------------------------------------------------------
+
+// ❌ 2. ELIMINAMOS LA FUNCIÓN SIMULADA 'checkInventoryStatus'
+
 
 // --- Componente de Card Individual de Sucursal ---
 interface BranchCardProps {
@@ -87,18 +76,9 @@ const BranchCard = ({
         <CardDescription>{branch.direccion || 'Sin dirección'}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-         <div className="flex justify-between text-sm items-center">
-          <span className="text-muted-foreground flex items-center"><DollarSign className="h-4 w-4 mr-2" />Total Inversión</span>
-          <span className="font-medium">{`$${stats.totalInversion.toLocaleString('es-MX')}`}</span>
-        </div>
-        <div className="flex justify-between text-sm items-center">
-          <span className="text-muted-foreground flex items-center"><Package className="h-4 w-4 mr-2" />Pedidos</span>
-          <span className="font-medium">{stats.totalPedidos === 0 ? 'Sin Pedidos' : `${stats.totalPedidos} Pedidos`}</span>
-        </div>
-        <div className="flex justify-between text-sm items-center">
-          <span className="text-muted-foreground flex items-center"><User className="h-4 w-4 mr-2" />Responsable</span>
-          <span className="font-medium">{stats.responsable || 'N/A'}</span>
-        </div>
+         <div className="flex justify-between text-sm items-center"><span className="text-muted-foreground flex items-center"><DollarSign className="h-4 w-4 mr-2" />Total Inversión</span><span className="font-medium">{`$${stats.totalInversion.toLocaleString('es-MX')}`}</span></div>
+        <div className="flex justify-between text-sm items-center"><span className="text-muted-foreground flex items-center"><Package className="h-4 w-4 mr-2" />Pedidos</span><span className="font-medium">{stats.totalPedidos === 0 ? 'Sin Pedidos' : `${stats.totalPedidos} Pedidos`}</span></div>
+        <div className="flex justify-between text-sm items-center"><span className="text-muted-foreground flex items-center"><User className="h-4 w-4 mr-2" />Responsable</span><span className="font-medium">{stats.responsable || 'N/A'}</span></div>
       </CardContent>
       <CardFooter className="flex justify-between items-center gap-2">
         <Button
@@ -107,7 +87,8 @@ const BranchCard = ({
           disabled={isMutating}
         >
           <Warehouse className="mr-2 h-4 w-4" />
-          Actualizar Inventario
+          {/* ✅ 3. CAMBIAMOS EL TEXTO PARA MÁS CLARIDAD */}
+          {branch.es_matriz ? 'Gestionar Matriz' : 'Ver Inventario'}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -130,7 +111,7 @@ const BranchCard = ({
   );
 };
 
-// --- Componente de Card para Añadir ---
+// ... (AddBranchCard y LoadingCard se mantienen igual) ...
 const AddBranchCard = ({ onClick }: { onClick: () => void }) => (
   <Card
     onClick={onClick}
@@ -142,8 +123,6 @@ const AddBranchCard = ({ onClick }: { onClick: () => void }) => (
     </div>
   </Card>
 );
-
-// --- Componente de Card de Carga ---
 const LoadingCard = () => (
   <Card className="shadow-lg h-full min-h-[340px]">
     <CardHeader>
@@ -161,59 +140,63 @@ const LoadingCard = () => (
   </Card>
 );
 
+
 // =======================================================
 // --- COMPONENTE PRINCIPAL (BranchManagement) ---
 // =======================================================
 export function BranchManagement() {
     const router = useRouter();
-    // Hooks de datos y mutaciones
     const { data: branches = [], isLoading, error } = useBranches();
     const createBranchMutation = useCreateBranch();
     const updateBranchMutation = useUpdateBranch();
     const deleteBranchMutation = useDeleteBranch();
 
-    // Estados para formularios y modales
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
     const [branchToDelete, setBranchToDelete] = useState<Branch | null>(null);
     const [isInventoryChecking, setIsInventoryChecking] = useState(false);
-    // 🛑 ESTADO ELIMINADO: Ya no se usa branchToAssignInventory
 
     // --- LÓGICA DE REDIRECCIÓN/TOAST ACTUALIZADA ---
     const handleOpenInventoryModal = async (branch: Branch) => {
         if (isInventoryChecking) return;
 
-        // CONDICIÓN 1: ES MATRIZ -> Redirige
         if (branch.es_matriz) {
             router.push('/inventario');
             return;
         }
 
-        // NO ES MATRIZ: Verificar inventario
+        // ✅ 4. LÓGICA REAL PARA VERIFICAR INVENTARIO
         setIsInventoryChecking(true);
         try {
-            const hasInventory = await checkInventoryStatus(branch.id);
+            // Llamamos a tu endpoint real
+            // Asumiendo que /api/v1 está en tu baseURL de axios
+            const { data: inventory } = await api.get(`/inventory/branch/${branch.id}`);
+            
+            // El endpoint devuelve un array. Si tiene items, hasInventory es true.
+            const hasInventory = Array.isArray(inventory) && inventory.length > 0;
 
             if (hasInventory) {
-                // CONDICIÓN 3: TIENE INVENTARIO -> Redirige con ID
+                // TIENE INVENTARIO -> Redirige
+                toast.info(`Cargando inventario de ${branch.nombre}...`);
+                // 🛑 ¡IMPORTANTE! Esta ruta tiene que existir y tu página de inventario
+                // debe saber cómo manejar el query param `branchId`
                 router.push(`/inventario?branchId=${branch.id}`);
             } else {
-                // 🛑 CONDICIÓN 2: INVENTARIO VACÍO -> Muestra TOAST
+                // INVENTARIO VACÍO -> Muestra TOAST
                 toast.warning(`La sucursal "${branch.nombre}" aún no tiene inventario.`, {
                   description: 'Por favor, asigna productos desde la Matriz.',
                   position: 'top-right',
                 });
-                // No redirige
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error al verificar inventario:", err);
-            toast.error("Ocurrió un error al verificar el inventario.");
+            toast.error("Ocurrió un error al verificar el inventario.", {
+              description: err.response?.data?.message || err.message
+            });
         } finally {
             setIsInventoryChecking(false);
         }
     };
-
-    // 🛑 FUNCIÓN ELIMINADA: Ya no se necesita handleAssignInventory
 
     // --- Handlers de Formularios (Crear/Editar Sucursal) ---
     const handleOpenCreateForm = () => { setEditingBranch(null); setIsFormOpen(true); };
@@ -243,7 +226,6 @@ export function BranchManagement() {
         });
     };
 
-    // Estado combinado de mutación
     const isMutating =
         createBranchMutation.isPending ||
         updateBranchMutation.isPending ||
@@ -266,28 +248,24 @@ export function BranchManagement() {
                         branch={branch}
                         onEdit={handleOpenEditForm}
                         onDelete={promptDelete}
-                        onManageInventory={handleOpenInventoryModal} // Llama a la lógica actualizada
+                        onManageInventory={handleOpenInventoryModal}
                         isMutating={isMutating}
                     />
                 ))}
                 <AddBranchCard onClick={handleOpenCreateForm} />
             </div>
 
-            {/* Sección Inferior: Gráficas (Si las mantienes) */}
-            {/* ... (Tu JSX de gráficas si aplica) ... */}
+            {/* ... (Tu JSX de gráficas) ... */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-               {/* Ejemplo Gráfica Pie */}
                <Card className="lg:col-span-1 shadow-lg">
                  <CardHeader><CardTitle>Money Stats</CardTitle></CardHeader>
                  <CardContent className="h-[250px]"> {/* Contenido Gráfica */} </CardContent>
                </Card>
-               {/* Ejemplo Gráfica Bar */}
                <Card className="lg:col-span-2 shadow-lg">
                  <CardHeader><CardTitle>Net Income</CardTitle></CardHeader>
                  <CardContent className="h-[250px]"> {/* Contenido Gráfica */} </CardContent>
                </Card>
             </div>
-
 
             {/* Modal del Formulario (Crear/Editar Sucursal) */}
             {isFormOpen && (
@@ -322,9 +300,6 @@ export function BranchManagement() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-
-            {/* 🛑 MODAL ELIMINADO: Ya no se usa el AlertDialog para inventario vacío */}
-
         </div>
     );
 }

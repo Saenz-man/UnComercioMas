@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 // Asume que tienes un tipo Category definido en src/types
 import type { Category } from '../types/category.types'; 
 
-// Define la estructura de datos para crear/actualizar una categoría
+// Define la estructura de datos para crear/actualizar una Coleccion
 export interface CategoryPayload {
   nombre: string;
   slug: string;
@@ -11,7 +11,7 @@ export interface CategoryPayload {
 }
 
 export const CategoryService = {
-  // Obtener todas las categorías (Público, no necesita token aquí)
+  // Obtener todas las Colecciones (Público, no necesita token aquí)
   async getAll(): Promise<Category[]> {
     console.log("[CategoryService] Fetching all categories...");
     try {
@@ -25,7 +25,7 @@ export const CategoryService = {
     }
   },
 
-  // Crear una nueva categoría (Requiere token, api.ts lo añade)
+  // Crear una nueva Coleccion (Requiere token, api.ts lo añade)
   async create(payload: CategoryPayload): Promise<Category> {
     console.log("[CategoryService] Creating category:", payload);
     try {

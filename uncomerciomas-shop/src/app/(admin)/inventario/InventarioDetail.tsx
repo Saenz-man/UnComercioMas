@@ -1,12 +1,13 @@
 "use client";
-import { useInventory, InventoryItem, useUpdateInventoryStock, useDeleteInventoryItem, useBranchInventory } from "@/hooks/useInventory"; // ✅ 1. Importar useBranchInventory
-import { useMatrizId, useBranches } from "@/hooks/useBranches"; // ✅ 2. Importar useBranches y useMatrizId
+// 1. IMPORTAMOS useBranchInventory (el único que usaremos) y el hook de matriz
+import { InventoryItem, useUpdateInventoryStock, useDeleteInventoryItem, useBranchInventory } from "@/hooks/useInventory";
+import { useMatrizId, useBranches } from "@/hooks/useBranches"; 
 import { AlertCircle, Loader2, ChevronDown, ChevronUp, MoveRight } from 'lucide-react';
-import { useState, useMemo } from "react"; // ✅ 3. Importar useMemo
+import { useState, useMemo } from "react";
 import { toast } from 'sonner';
 import { useQueryClient } from "@tanstack/react-query";
 
-// --- Importa tus componentes UI ---
+// ... (El resto de tus imports de UI, Modales y Tipos se quedan igual) ...
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { UpdateStockModal } from './UpdateStockModal';
@@ -27,9 +28,8 @@ import { EnviosStockModal } from './enviosStock';
 import { ConfirmarEnvioModal } from './ConfirmarEnvioModal';
 import type { Branch } from '@/types/branch.types';
 
-// =======================================================
-// 1. TIPOS (Sin cambios)
-// =======================================================
+
+// ... (El Tipo 'GroupedProduct' y la función 'groupInventoryByProduct' se quedan igual) ...
 interface GroupedProduct {
     productId: string;
     nombre: string;
@@ -40,12 +40,8 @@ interface GroupedProduct {
     categoriaNombre: string;
     modelo: string;
 }
-
-// =======================================================
-// 2. LÓGICA: FUNCIÓN PARA AGRUPAR (Sin cambios)
-// =======================================================
 const groupInventoryByProduct = (items: InventoryItem[]): GroupedProduct[] => {
-    // ... (Tu función de agrupar se queda igual)
+    // ... (lógica de agrupación sin cambios)
     const productMap = new Map<string, GroupedProduct>();
     for (const item of items) {
         const p = item.variante?.producto;
@@ -73,17 +69,15 @@ const groupInventoryByProduct = (items: InventoryItem[]): GroupedProduct[] => {
     return Array.from(productMap.values());
 };
 
-// =======================================================
-// 3. COMPONENTE DE FILA EXPANDIBLE (Con Checkboxes)
-// =======================================================
+// ... (El componente 'ProductRow' se queda exactamente igual) ...
 interface ProductRowProps {
   product: GroupedProduct;
   selectedItems: InventoryItem[];
   setSelectedItems: React.Dispatch<React.SetStateAction<InventoryItem[]>>;
-  isMatriz: boolean; // ✅ 4. Prop para saber si ocultamos checkboxes
+  isMatriz: boolean;
 }
-
 const ProductRow = ({ product, selectedItems, setSelectedItems, isMatriz }: ProductRowProps) => {
+    // ... (Todo el JSX y lógica de ProductRow se queda igual)
     const [isExpanded, setIsExpanded] = useState(false);
     const optionKeys = Object.keys(product.variantes[0]?.variante.atributos || {});
     const [itemToEdit, setItemToEdit] = useState<InventoryItem | null>(null);
@@ -92,7 +86,6 @@ const ProductRow = ({ product, selectedItems, setSelectedItems, isMatriz }: Prod
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
     const queryClient = useQueryClient();
 
-    // ... (Funciones handleSelectVariant, handleSelectAllProduct, handleDeleteConfirm se quedan igual) ...
     const handleSelectVariant = (item: InventoryItem, checked: boolean) => {
         if (checked) {
             setSelectedItems(prev => [...prev, item]);
@@ -100,6 +93,7 @@ const ProductRow = ({ product, selectedItems, setSelectedItems, isMatriz }: Prod
             setSelectedItems(prev => prev.filter(i => i.id !== item.id));
         }
     };
+
     const handleSelectAllProduct = (checked: boolean) => {
         if (checked) {
             setSelectedItems(prev => {
@@ -111,13 +105,14 @@ const ProductRow = ({ product, selectedItems, setSelectedItems, isMatriz }: Prod
             setSelectedItems(prev => prev.filter(i => !variantIds.has(i.id)));
         }
     };
+    
     const isThisProductFullySelected = product.variantes.length > 0 && product.variantes.every(v => selectedItems.some(i => i.id === v.id));
+    
     const handleDeleteConfirm = (inventoryItemId: string, sku: string) => {
         deleteInventoryItemMutation.mutate(inventoryItemId, {
             onSuccess: () => {
                 toast.success(`Entrada de inventario para ${sku} eliminada.`);
-                // ✅ 5. Invalidar la caché correcta
-                queryClient.invalidateQueries({ queryKey: ['branchInventory'] }); 
+                queryClient.invalidateQueries({ queryKey: ['branchInventory'] }); // Usamos la key correcta
                 setItemToDelete(null);
             },
             onError: (error: any) => {
@@ -126,16 +121,15 @@ const ProductRow = ({ product, selectedItems, setSelectedItems, isMatriz }: Prod
             }
         });
     };
+
     const productPhotoUrl = (product.foto && !product.foto.startsWith('http'))
         ? `${SERVER_URL}${product.foto}`
         : product.foto;
 
-
     return (
         <>
-            {/* --- Fila Padre --- */}
             <TableRow className="hover:bg-gray-100 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-                 <TableCell className="w-20">
+                 <TableCell className="w-20"> 
                     <div className="h-12 w-12 rounded-lg overflow-hidden border">
                         <img src={productPhotoUrl} alt={product.nombre} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/50x50/CCCCCC/333333?text=N/A'; }} />
                     </div>
@@ -151,17 +145,14 @@ const ProductRow = ({ product, selectedItems, setSelectedItems, isMatriz }: Prod
                     </Button>
                 </TableCell>
             </TableRow>
-
-            {/* --- Fila Variante --- */}
             {isExpanded && (
                 <TableRow className="bg-gray-50 hover:bg-gray-50 transition-none">
-                    <TableCell colSpan={7} className="p-0 border-b-2 border-primary/10">
+                    <TableCell colSpan={isMatriz ? 7 : 6} className="p-0 border-b-2 border-primary/10"> {/* Colspan dinámico */}
                         <div className="p-4 pl-16">
                             <h4 className="text-sm font-medium mb-3 text-primary">Detalles de Variantes ({product.variantes.length})</h4>
                             <Table className="w-full bg-white border rounded-lg">
                                 <TableHeader className="bg-gray-100">
                                     <TableRow className="hover:bg-gray-100">
-                                        {/* ✅ 6. Ocultar checkbox si NO es la Matriz */}
                                         {isMatriz && (
                                             <TableHead className="w-10 px-3">
                                                 <Checkbox
@@ -188,7 +179,6 @@ const ProductRow = ({ product, selectedItems, setSelectedItems, isMatriz }: Prod
 
                                         return (
                                         <TableRow key={item.id} className="text-sm">
-                                            {/* ✅ 7. Ocultar checkbox si NO es la Matriz */}
                                             {isMatriz && (
                                                 <TableCell className="px-3">
                                                     <Checkbox
@@ -237,48 +227,39 @@ const ProductRow = ({ product, selectedItems, setSelectedItems, isMatriz }: Prod
                     </TableCell>
                 </TableRow>
             )}
-
-            {/* Modal de Editar Stock */}
             {itemToEdit && (<UpdateStockModal item={itemToEdit} isOpen={!!itemToEdit} onClose={() => setItemToEdit(null)}/>)}
         </>
     );
 };
 
+
 // =======================================================
 // 4. COMPONENTE PRINCIPAL (ACTUALIZADO)
 // =======================================================
-export default function Inventario({ branchId }: { branchId?: string }) { // ✅ 8. Aceptar prop
+// ✅ AHORA RECIBE 'branchId' COMO PROP OBLIGATORIA
+export default function InventarioDetail({ branchId }: { branchId: string }) { 
   
   const matrizId = useMatrizId(); // Obtener el ID de la Matriz
 
-  // ✅ 9. Determinar qué ID de sucursal vamos a cargar
-  // Si la URL nos pasa un branchId, lo usamos.
-  // Si no, usamos el matrizId (que puede estar cargando, por eso `useBranchInventory` tiene `enabled: !!targetBranchId`)
-  const targetBranchId = branchId ? branchId : matrizId;
-
-  // ✅ 10. Llamar al hook correcto
-  // Usamos el hook base con el ID que determinamos
-  const { data: inventario, isLoading: isLoadingInventory, error: inventoryError } = useBranchInventory(targetBranchId);
+  // ✅ YA NO HAY LÓGICA DE FALLBACK. USAMOS EL ID RECIBIDO.
+  const { data: inventario, isLoading: isLoadingInventory, error: inventoryError } = useBranchInventory(branchId);
   
-  // ✅ 11. Cargar todas las sucursales para obtener el nombre
   const { data: allBranches, isLoading: isLoadingBranches } = useBranches();
   
-  // (Estados para los modales y selección)
   const [selectedItems, setSelectedItems] = useState<InventoryItem[]>([]);
   const [isStep1ModalOpen, setIsStep1ModalOpen] = useState(false);
   const [isStep2ModalOpen, setIsStep2ModalOpen] = useState(false);
   const [selectedDestinationBranch, setSelectedDestinationBranch] = useState<Branch | null>(null);
 
-  // ✅ 12. Determinar si estamos en la Matriz (para ocultar/mostrar botones)
-  // Comparamos el ID de la URL (o la falta de él) con el ID de la Matriz
-  const isMatriz = !branchId || branchId === matrizId;
+  // ✅ 'isMatriz' AHORA SE CALCULA COMPARANDO EL ID DE LA PROP CON EL ID DE LA MATRIZ
+  const isMatriz = branchId === matrizId;
 
-  // ✅ 13. Título dinámico
+  // Título dinámico
   const title = useMemo(() => {
-    if (!targetBranchId || !allBranches) return "Cargando Inventario...";
-    const currentBranch = allBranches.find(b => b.id === targetBranchId);
+    if (!branchId || !allBranches) return "Cargando Inventario...";
+    const currentBranch = allBranches.find(b => b.id === branchId);
     return currentBranch ? `Inventario de ${currentBranch.nombre}` : "Inventario";
-  }, [targetBranchId, allBranches]);
+  }, [branchId, allBranches]);
 
 
   const isLoading = isLoadingInventory || isLoadingBranches;
@@ -308,10 +289,8 @@ export default function Inventario({ branchId }: { branchId?: string }) { // ✅
     <div className="p-4 md:p-8 space-y-6">
       
       <div className="flex justify-between items-center gap-4">
-        {/* ✅ 14. Usar el título dinámico */}
         <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
         
-        {/* ✅ 15. Mostrar botón de transferir SÓLO si es Matriz */}
         {isMatriz && selectedItems.length > 0 && (
             <Button 
                 size="lg" 
@@ -330,7 +309,7 @@ export default function Inventario({ branchId }: { branchId?: string }) { // ✅
             <Table>
                 <TableHeader>
                     <TableRow className="bg-gray-100 hover:bg-gray-100">
-                        <TableHead className="w-20">Foto</TableHead>
+                        <TableHead className="w-20">Foto</TableHead> 
                         <TableHead>Producto Padre</TableHead>
                         <TableHead>Coleccion</TableHead>
                         <TableHead>Modelo</TableHead>
@@ -346,7 +325,7 @@ export default function Inventario({ branchId }: { branchId?: string }) { // ✅
                             product={product}
                             selectedItems={selectedItems}
                             setSelectedItems={setSelectedItems}
-                            isMatriz={isMatriz} // ✅ 16. Pasar la prop
+                            isMatriz={isMatriz} 
                         /> 
                     ))}
                 </TableBody>
@@ -354,7 +333,6 @@ export default function Inventario({ branchId }: { branchId?: string }) { // ✅
         </div>
       )}
       
-      {/* ✅ 17. Renderizar modales SÓLO si es Matriz */}
       {isMatriz && (
         <>
           <EnviosStockModal

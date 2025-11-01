@@ -3,16 +3,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CategoryService, CategoryPayload } from '@/services/category.service';
 import type { Category } from '@/types/category.types';
 
-// Hook para obtener todas las categorías
+// Hook para obtener todas las Colecciones
 export const useCategories = () => {
   return useQuery<Category[], Error>({
     queryKey: ['categories'], // Clave para la caché
     queryFn: CategoryService.getAll, // Llama al método del servicio
-    staleTime: Infinity, // Considera las categorías 'frescas' indefinidamente (o ajusta)
+    staleTime: Infinity, // Considera las Colecciones 'frescas' indefinidamente (o ajusta)
   });
 };
 
-// Hook para la mutación (crear categoría)
+// Hook para la mutación (crear Coleccion)
 export const useCreateCategory = () => {
   const queryClient = useQueryClient(); // Para invalidar la caché después de crear
 
@@ -22,11 +22,11 @@ export const useCreateCategory = () => {
       // Cuando la creación es exitosa, invalida la caché de 'categories'
       // para que React Query vuelva a pedirlas (y muestre la nueva)
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      console.log("Categoría creada, caché invalidada.");
+      console.log("Coleccion creada, caché invalidada.");
       // Aquí podrías mostrar una notificación de éxito
     },
     onError: (error) => {
-      console.error("Error al crear categoría:", error);
+      console.error("Error al crear Coleccion:", error);
       // Aquí podrías mostrar una notificación de error
     }
   });

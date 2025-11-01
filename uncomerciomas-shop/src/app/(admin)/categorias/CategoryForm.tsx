@@ -19,7 +19,7 @@ const categorySchema = z.object({
 // Tipos para las props del formulario
 interface CategoryFormProps {
   initialData?: Category | null; // Datos para editar (opcional)
-  categories: Category[]; // Lista de categorías para el selector de padre
+  categories: Category[]; // Lista de Colecciones para el selector de padre
   onSubmit: (data: CategoryPayload) => void;
   onCancel: () => void;
   isLoading?: boolean;
@@ -66,7 +66,7 @@ export function CategoryForm({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">
-          {initialData ? 'Editar Categoría' : 'Nueva Categoría'}
+          {initialData ? 'Editar Coleccion' : 'Nueva Coleccion'}
         </h2>
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           {/* Campo Nombre */}
@@ -91,16 +91,16 @@ export function CategoryForm({
             {errors.slug && <p className="text-red-500 text-xs mt-1">{errors.slug.message}</p>}
           </div>
 
-          {/* Selector Categoría Padre */}
+          {/* Selector Coleccion Padre */}
           <div>
-            <label htmlFor="id_padre" className="block text-sm font-medium text-gray-700 mb-1">Categoría Padre (Opcional)</label>
+            <label htmlFor="id_padre" className="block text-sm font-medium text-gray-700 mb-1">Coleccion Padre (Opcional)</label>
             <select
               id="id_padre"
               {...register('id_padre')}
               className={`w-full border p-2 rounded ${errors.id_padre ? 'border-red-500' : 'border-gray-300'}`}
             >
               <option value="">-- Ninguna --</option>
-              {/* Filtramos la categoría actual si estamos editando */}
+              {/* Filtramos la Coleccion actual si estamos editando */}
               {categories.filter(cat => cat.id !== initialData?.id).map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.nombre}
@@ -125,7 +125,7 @@ export function CategoryForm({
               disabled={isLoading}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {isLoading ? (initialData ? 'Guardando...' : 'Creando...') : (initialData ? 'Guardar Cambios' : 'Crear Categoría')}
+              {isLoading ? (initialData ? 'Guardando...' : 'Creando...') : (initialData ? 'Guardar Cambios' : 'Crear Coleccion')}
             </button>
           </div>
         </form>

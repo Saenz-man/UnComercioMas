@@ -10,9 +10,9 @@ import { CategoryForm } from './CategoryForm'; // Asume que este archivo está e
 // (Añadir imports para useUpdateCategory, useDeleteCategory cuando los crees)
 
 export function CategoryManagement() {
-  // Hook para obtener categorías (valor por defecto [])
+  // Hook para obtener Colecciones (valor por defecto [])
   const { data: categories = [], isLoading, error } = useCategories();
-  // Hook para crear categoría
+  // Hook para crear Coleccion
   const createCategoryMutation = useCreateCategory();
   // (Hooks para editar y eliminar irían aquí)
   // const updateCategoryMutation = useUpdateCategory();
@@ -26,7 +26,7 @@ export function CategoryManagement() {
   if (isLoading) {
     return (
       <div className="bg-white p-4 rounded shadow animate-pulse">
-        <p>Cargando categorías...</p>
+        <p>Cargando Colecciones...</p>
         {/* Puedes añadir un skeleton loader más visual aquí */}
          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4 mt-4"></div>
          <div className="space-y-3">
@@ -37,7 +37,7 @@ export function CategoryManagement() {
       </div>
     );
   }
-  if (error) return <p className="text-red-500">Error al cargar categorías: {error.message}</p>;
+  if (error) return <p className="text-red-500">Error al cargar Colecciones: {error.message}</p>;
 
   // --- Funciones Handler ---
   const handleOpenCreateForm = () => {
@@ -61,7 +61,7 @@ export function CategoryManagement() {
       onSuccess: () => {
         handleCloseForm();
         // Opcional: Mostrar notificación de éxito
-        alert("Categoría creada con éxito!");
+        alert("Coleccion creada con éxito!");
       },
       onError: (err: any) => {
         // Opcional: Mostrar notificación de error
@@ -83,12 +83,12 @@ export function CategoryManagement() {
   };
 
   const handleDelete = (id: string, name: string) => {
-     if (window.confirm(`¿Estás seguro de que quieres eliminar la categoría "${name}"?`)) {
-        console.log("Eliminar categoría:", id);
+     if (window.confirm(`¿Estás seguro de que quieres eliminar la Coleccion "${name}"?`)) {
+        console.log("Eliminar Coleccion:", id);
         alert('Funcionalidad de eliminar pendiente. Conectar con useDeleteCategory.'); // Placeholder
         // Aquí llamarías a la mutación de eliminación
         // deleteCategoryMutation.mutate(id, {
-        //    onSuccess: () => { alert('Categoría eliminada'); },
+        //    onSuccess: () => { alert('Coleccion eliminada'); },
         //    onError: (err) => { alert(`Error al eliminar: ${...}`); }
         // });
      }
@@ -103,26 +103,26 @@ export function CategoryManagement() {
           className="bg-blue-600 text-white px-4 py-2 rounded-md shadow hover:bg-blue-700 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           disabled={createCategoryMutation.isPending /* || other mutations */}
         >
-          + Nueva Categoría
+          + Nueva Coleccion
         </button>
       </div>
 
-      {/* --- Tabla de Categorías --- */}
+      {/* --- Tabla de Colecciones --- */}
       <div className="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
-         <h2 className="text-xl font-semibold mb-4 text-gray-700">Lista de Categorías</h2>
+         <h2 className="text-xl font-semibold mb-4 text-gray-700">Lista de Colecciones</h2>
          {categories.length > 0 ? (
            <table className="min-w-full divide-y divide-gray-200">
              <thead className="bg-gray-50">
                <tr>
                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
-                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría Padre</th>
+                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coleccion Padre</th>
                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                </tr>
              </thead>
              <tbody className="bg-white divide-y divide-gray-200">
                {categories.map((cat) => {
-                 // Busca el nombre de la categoría padre
+                 // Busca el nombre de la Coleccion padre
                  const parentCategory = cat.id_padre ? categories.find(p => p.id === cat.id_padre) : null;
                  return (
                    <tr key={cat.id} className="hover:bg-gray-50">
@@ -154,7 +154,7 @@ export function CategoryManagement() {
              </tbody>
            </table>
          ) : (
-           <p className="text-gray-500 italic text-center py-4">No hay categorías creadas todavía.</p>
+           <p className="text-gray-500 italic text-center py-4">No hay Colecciones creadas todavía.</p>
          )}
       </div>
       {/* --- Fin de la Tabla --- */}

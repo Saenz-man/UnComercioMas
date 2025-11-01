@@ -1,10 +1,10 @@
-//UnComercioMas/uncomerciomas-shop/src/app/(admin)/inventario/page.tsx
-import Inventario from "./inventario";
+// app/(admin)/inventario/page.tsx
+import { InventarioSelector } from "./InventarioSelector";
 
 export default function Page() {
   return (
     <div>
-      <Inventario />
+      <InventarioSelector />
     </div>
   );
 }

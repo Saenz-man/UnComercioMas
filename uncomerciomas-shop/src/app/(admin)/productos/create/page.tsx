@@ -14,7 +14,7 @@ import { CategoryService } from '@/services/category.service';
 export default async function CreateProductPage() {
   const queryClient = new QueryClient();
 
-  // Pre-cargamos categorías y atributos en el servidor
+  // Pre-cargamos Colecciones y atributos en el servidor
   await queryClient.prefetchQuery({
     queryKey: ['categories'],
     // --- ¡CAMBIO AQUÍ! ---

@@ -69,13 +69,13 @@ const productSchema = z.object({
 
   slug: z.string().optional(),
 
-  // --- ¡CORRECCIÓN DE CATEGORÍA! ---
+  // --- ¡CORRECCIÓN DE Coleccion! ---
   // Establecemos el mensaje de error para la validación de TIPO (ej. si es 'undefined')
   categoria_id: z.string({
-    message: "Selecciona una categoría", 
+    message: "Selecciona una Coleccion", 
   })
   // Encadenamos la validación de VALOR (que no sea un string vacío "")
-  .min(1, "Selecciona una categoría"), 
+  .min(1, "Selecciona una Coleccion"), 
   // ---------------------------------
 
   fotos: z.array(z.string()).optional(),
@@ -386,7 +386,7 @@ export function ProductCreateForm() {
             </div>
 
             <div>
-              <Label htmlFor="categoria_id">Categoría *</Label>
+              <Label htmlFor="categoria_id">Coleccion *</Label>
               <Select
                 onValueChange={(value: string) =>
                   setValue("categoria_id", value, { shouldValidate: true }) // Añadir validación
@@ -394,7 +394,7 @@ export function ProductCreateForm() {
                 value={watch("categoria_id")}
               >
                 <SelectTrigger id="categoria_id">
-                  <SelectValue placeholder="Selecciona una categoría..." />
+                  <SelectValue placeholder="Selecciona una Coleccion..." />
                 </SelectTrigger>
                 <SelectContent>
                   {isLoadingCategories ? (

@@ -1,4 +1,3 @@
-// app/(admin)/inventario/UpdateStockModal.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -7,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+// ✅ 1. IMPORTAR useQueryClient
+import { useQueryClient } from '@tanstack/react-query'; 
 
 // --- Tus componentes UI ---
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,6 @@ import {
 } from "@/components/ui/select";
 
 // --- Hook de mutación e interfaz ---
-// Asegúrate de importar la interfaz correcta desde el hook
 import { useUpdateInventoryStock, InventoryItem } from '@/hooks/useInventory';
 
 // --- Esquema de validación ---
@@ -50,7 +50,9 @@ interface UpdateStockModalProps {
 
 export function UpdateStockModal({ item, isOpen, onClose }: UpdateStockModalProps) {
   const updateStockMutation = useUpdateInventoryStock();
-  // 🛑 FIX: Asegurar que el estado inicial sea un número
+  // ✅ 2. OBTENER EL CLIENTE DE CACHÉ
+  const queryClient = useQueryClient();
+  
   const [calculatedStock, setCalculatedStock] = useState<number>(Number(item.stock) || 0);
 
   const {
@@ -62,7 +64,6 @@ export function UpdateStockModal({ item, isOpen, onClose }: UpdateStockModalProp
     formState: { errors },
   } = useForm<UpdateStockFormValues>({
     resolver: zodResolver(UpdateStockSchema),
-    // 🛑 FIX: Asegurar defaultValues numéricos
     defaultValues: {
       newStock: Number(item.stock) || 0,
       adjustmentType: 'RECONTEO',
@@ -86,11 +87,10 @@ export function UpdateStockModal({ item, isOpen, onClose }: UpdateStockModalProp
   const newStockValue = watch('newStock');
 
   useEffect(() => {
-    // 🛑 FIX: Usar Number() para asegurar cálculos numéricos
     const currentStock = Number(item.stock) || 0;
-    const value = Number(newStockValue) || 0; // Valor del input convertido a número
+    const value = Number(newStockValue) || 0; 
 
-    let finalStock = currentStock; // Valor por defecto
+    let finalStock = currentStock; 
 
     if (adjustmentType === 'RECONTEO') {
       finalStock = value;
@@ -99,8 +99,7 @@ export function UpdateStockModal({ item, isOpen, onClose }: UpdateStockModalProp
     } else if (adjustmentType === 'ELIMINAR') {
       finalStock = currentStock - value;
     }
-
-    // Asegurarse de que no sea NaN antes de actualizar el estado
+    
     setCalculatedStock(isNaN(finalStock) ? 0 : finalStock);
 
   }, [adjustmentType, newStockValue, item.stock]);
@@ -112,15 +111,16 @@ export function UpdateStockModal({ item, isOpen, onClose }: UpdateStockModalProp
         return;
     }
 
-    // Enviamos el stock CALCULADO al backend
     updateStockMutation.mutate(
       {
         inventoryId: item.id,
-        stock: calculatedStock, // Usamos el stock calculado
+        stock: calculatedStock, 
       },
       {
         onSuccess: () => {
           toast.success(`Stock de ${item.variante.sku} actualizado a ${calculatedStock}. Motivo: ${data.adjustmentType} ${data.reason ? `(${data.reason})` : ''}`);
+          // ✅ 3. INVALIDAR LA CACHÉ PARA FORZAR RECARGA
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
           onClose(); // Cierra el modal
         },
         onError: (error: any) => {
@@ -146,7 +146,6 @@ export function UpdateStockModal({ item, isOpen, onClose }: UpdateStockModalProp
         <DialogHeader>
           <DialogTitle>Ajustar Stock</DialogTitle>
           <DialogDescription>
-            {/* 🛑 FIX: Usar 'atributos' para mostrar las opciones */}
             Ajusta la cantidad de **{item.variante.sku}** ({Object.values(item.variante.atributos || {}).join(' / ')}) en la Matriz.
           </DialogDescription>
         </DialogHeader>
@@ -156,7 +155,6 @@ export function UpdateStockModal({ item, isOpen, onClose }: UpdateStockModalProp
           <div>
             <Label htmlFor="adjustmentType">Tipo de Ajuste</Label>
             <Select
-              // Usamos defaultValue aquí para controlar el estado inicial con RHF
               defaultValue={watch('adjustmentType')}
               onValueChange={(value: 'RECONTEO' | 'AGREGAR' | 'ELIMINAR') => setValue('adjustmentType', value)}
               disabled={updateStockMutation.isPending}
@@ -191,16 +189,13 @@ export function UpdateStockModal({ item, isOpen, onClose }: UpdateStockModalProp
 
           {/* Stock Actual y Calculado */}
           <div className="text-sm space-y-1 bg-gray-50 p-3 rounded-md border">
-            {/* 🛑 FIX: Usar Number() por seguridad */}
             <p>Stock Actual: <strong className="font-semibold">{Number(item.stock) || 0}</strong></p>
             <p>Stock Calculado Final:
               <strong className={`font-semibold ${calculatedStock < 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                {/* 🛑 FIX: Mostrar 0 si es NaN */}
                 {isNaN(calculatedStock) ? 0 : (calculatedStock < 0 ? `Inválido (${calculatedStock})` : calculatedStock)}
               </strong>
             </p>
           </div>
-
 
           {/* Motivo (Opcional) */}
           <div>
@@ -227,7 +222,7 @@ export function UpdateStockModal({ item, isOpen, onClose }: UpdateStockModalProp
           <Button
             type="submit"
             form="update-stock-form"
-            disabled={updateStockMutation.isPending || calculatedStock < 0 || isNaN(calculatedStock)} // Deshabilita si es inválido o NaN
+            disabled={updateStockMutation.isPending || calculatedStock < 0 || isNaN(calculatedStock)} 
           >
             {updateStockMutation.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

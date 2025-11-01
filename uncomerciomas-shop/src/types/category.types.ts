@@ -1,9 +1,9 @@
 /**
- * Define los tipos de datos para las Categorías.
+ * Define los tipos de datos para las Colecciones.
  */
 
 // --- TIPO DE RESPUESTA ---
-// Lo que la API devuelve (basado en tu POST de categorías)
+// Lo que la API devuelve (basado en tu POST de Colecciones)
 export interface Category {
   id: string;
   nombre: string;
@@ -12,7 +12,7 @@ export interface Category {
 }
 
 // --- TIPO DE ENVÍO (Payload) ---
-// Lo que el formulario de "Crear Categoría" enviaría
+// Lo que el formulario de "Crear Coleccion" enviaría
 export interface CreateCategoryPayload {
   nombre: string;
   slug: string;

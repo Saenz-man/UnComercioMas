@@ -31,7 +31,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"; // Asegúrate de importar toast
 
-// Opcional: Para el Select de Categoría
+// Opcional: Para el Select de Coleccion
 // import { useCategories } from '@/hooks/useCategories';
 // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -333,7 +333,7 @@ export function ProductEditForm({ product }: ProductEditFormProps) {
           <Textarea id="descripcion" {...register("descripcion")} />
         </div>
 
-        {/* (Aquí iría el Select de Categoría si lo necesitas editar) */}
+        {/* (Aquí iría el Select de Coleccion si lo necesitas editar) */}
       </div>
 
       {/* --- SECCIÓN MULTIMEDIA PADRE --- */}
