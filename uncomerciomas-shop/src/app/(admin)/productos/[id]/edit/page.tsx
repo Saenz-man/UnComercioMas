@@ -1,46 +1,82 @@
-"use client";
+import {
+  HydrationBoundary,
+  QueryClient,
+  dehydrate,
+} from '@tanstack/react-query';
+import { ProductService } from '@/services/product.service';
+import { CategoryService } from '@/services/category.service';
+import { ModelService } from '@/services/model.service';
+import { ProductForm } from '../../components/ProductForm'; // Ajusta la ruta a tu carpeta 'components'
+import type { Product } from '@/types/product.types';
 
-import React from 'react';
-import { useParams } from 'next/navigation';
-import { useProduct } from '@/hooks/useProducts'; // Tu hook de Paso 1
-import { Loader2, AlertTriangle } from 'lucide-react';
-import { ProductEditForm } from './ProductEditForm'; // El formulario de abajo
+interface EditProductPageProps {
+  params: {
+    id: string; // El [id] de la URL
+  };
+}
 
-export default function EditProductPage() {
-  const params = useParams();
-  const productId = params.id as string | undefined;
+// Esta es una página de Servidor (Async Component)
+export default async function EditProductPage({ params }: EditProductPageProps) {
+  
+  const queryClient = new QueryClient();
+  const productId = params.id;
 
-  // 1. Llama al hook para obtener los datos del producto
-  const { data: product, isLoading, error } = useProduct(productId);
+  if (!productId) {
+     return <div className="container mx-auto p-8"><p>ID de producto no válido.</p></div>;
+  }
 
-  // 2. Maneja el estado de carga
-  if (isLoading) {
+  // Pre-cargamos todos los datos necesarios en paralelo
+  try {
+    await Promise.all([
+      // Producto específico
+      queryClient.prefetchQuery({
+        queryKey: ['product', productId],
+        queryFn: () => ProductService.getById(productId), // Asumo que este servicio existe
+      }),
+      // Categorías (para el select)
+      queryClient.prefetchQuery({
+        queryKey: ['categories'],
+        queryFn: CategoryService.getAll,
+      }),
+      // Modelos (para el select)
+      queryClient.prefetchQuery({
+        queryKey: ['models'],
+        queryFn: ModelService.getAll,
+      })
+    ]);
+  } catch (error) {
+    console.error("Error fetching product data:", error);
     return (
-      <div className="flex justify-center items-center p-10">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <span className="ml-2">Cargando producto...</span>
+      <div className="container mx-auto p-8">
+        <h1 className="text-3xl font-bold text-destructive">Error</h1>
+        <p>No se pudo cargar el producto. Es posible que el ID no exista.</p>
       </div>
     );
   }
 
-  // 3. Maneja el estado de error
-  if (error || !product) {
+  // Obtenemos el producto de la caché para pasarlo como prop
+  const product = queryClient.getQueryData<Product>(['product', productId]);
+
+  if (!product) {
     return (
-      <div className="flex flex-col items-center p-10 text-destructive border border-destructive/50 bg-destructive/10 rounded-lg">
-        <AlertTriangle className="h-8 w-8 mb-2" />
-        <strong>Error al cargar el producto</strong>
-        <span>{error ? error.message : "Producto no encontrado."}</span>
+      <div className="container mx-auto p-8">
+        <h1 className="text-3xl font-bold text-destructive">Error</h1>
+        <p>Producto con ID {productId} no encontrado.</p>
       </div>
     );
   }
 
-  // 4. Si todo está bien, renderiza el formulario con los datos
+  // Renderizamos
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-6">
-        Editar Producto: <span className="font-normal text-muted-foreground">{product.nombre}</span>
-      </h1>
-      <ProductEditForm product={product} />
-    </div>
+    // HydrationBoundary pasa los datos del servidor al cliente (ProductForm)
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <div className="container mx-auto p-4 md:p-8">
+        {/* Renderizamos el MISMO formulario, pero esta vez
+          le pasamos 'initialData'. Esto lo pone
+          automáticamente en modo "Editar".
+        */}
+        <ProductForm initialData={product} />
+      </div>
+    </HydrationBoundary>
   );
 }
