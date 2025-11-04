@@ -43,7 +43,7 @@ function cartesian<T>(...arrays: T[][]): T[][] {
   return result;
 }
 
-// Función para formatear precio
+// Función para formatear precio (ya no se usa aquí, pero se puede quedar)
 const formatCurrency = (value: number | null | undefined): string => {
   const num = Number(value);
   if (isNaN(num)) return '$ 0.00';
@@ -60,9 +60,7 @@ export function OpcionesYVariantes() {
   const { control, watch, setValue, getValues, register, formState: { errors } } = useFormContext<ProductFormData>();
   
   // --- ESTADOS LOCALES (MODIFICADOS) ---
-  // Iniciamos 'hasOptions' en true para mostrar los defaults
   const [hasOptions, setHasOptions] = useState(true);
-  // Iniciamos 'optionDefs' con los valores por defecto
   const [optionDefs, setOptionDefs] = useState<OptionDefinition[]>(defaultOptionDefs);
   const [currentTagValues, setCurrentTagValues] = useState<Record<number, string>>({});
 
@@ -71,7 +69,6 @@ export function OpcionesYVariantes() {
     name: 'variantes',
   });
   
-  // const { data: attributes, isLoading: isLoadingAttributes } = useAttributes(); // <-- Eliminado
   const uploadMutation = useUpload();
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
@@ -163,7 +160,7 @@ export function OpcionesYVariantes() {
         stock: 0,
         foto: null,
         opciones: variantOptions,
-        precio: getValues('precioPorPieza') || 0,
+        precio: getValues('precioPorPieza') || 0, // <-- El precio se asigna aquí
       };
     });
     
@@ -174,14 +171,12 @@ export function OpcionesYVariantes() {
   const handleOptionsToggle = (checked: boolean) => {
     setHasOptions(checked);
     if (checked) {
-      // Si se marca, restaurar los defaults (o dejar los que ya estaban)
       if(optionDefs.length === 0) {
         setOptionDefs(defaultOptionDefs);
       }
     } else {
-      // Si se desmarca, limpiar la tabla y generar una sola variante
       setOptionDefs([]);
-      handleGenerateVariants(); // Llamará a la lógica de "sin opciones"
+      handleGenerateVariants(); 
     }
   };
   
@@ -213,188 +208,178 @@ export function OpcionesYVariantes() {
   const addOptionDef = () => setOptionDefs([...optionDefs, { name: '', values: [] }]);
   const removeOptionDef = (index: number) => setOptionDefs(optionDefs.filter((_, i) => i !== index));
 
-  // const attributeOptions = attributes || []; // <-- Eliminado
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Opciones y Variantes</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        
-        {/* --- 1. CHECKBOX --- */}
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="hasOptions"
-            checked={hasOptions}
-            onCheckedChange={handleOptionsToggle}
-          />
-          <Label htmlFor="hasOptions">
-            Este producto tiene múltiples opciones (ej. Talla, Color).
-          </Label>
-        </div>
 
-        {/* --- 2. DEFINICIÓN DE OPCIONES (Condicional) --- */}
-        {hasOptions && (
-          <div className="space-y-4 p-4 border rounded-md">
-            <Label>Opciones</Label>
-            {optionDefs.map((opt, index) => (
-              <div key={index} className="space-y-2">
-                <div className="flex gap-3 items-center">
-                  
-                  {/* --- INICIO DE LA ACTUALIZACIÓN --- */}
-                  {/* Reemplazamos el Select por un Input para el nombre */}
-                  <Input
-                    placeholder="Opción (ej. Talla)"
-                    value={opt.name}
-                    onChange={(e) => updateOptionName(index, e.target.value)}
-                    className="w-1/3"
-                  />
-                  {/* --- FIN DE LA ACTUALIZACIÓN --- */}
-                  
-                  {/* Input para añadir tags ("M", "G") */}
-                  <Input
-                    placeholder="Escribe un valor (ej. 'M') y presiona Enter"
-                    value={currentTagValues[index] || ''}
-                    onChange={(e) => updateTagInputValue(index, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault(); 
-                        handleAddTag(index);
-                      }
-                    }}
-                    className="flex-1"
-                  />
-                  <Button variant="outline" size="icon" onClick={() => removeOptionDef(index)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {/* Contenedor de Tags (Valores) */}
-                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 border rounded-md bg-muted/50">
-                  {opt.values.map((value, valueIndex) => (
-                    <Badge key={valueIndex} variant="secondary">
-                      {value}
-                      <button 
-                        type="button" 
-                        className="ml-1 rounded-full outline-none"
-                        onClick={() => handleRemoveTag(index, valueIndex)}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                  {opt.values.length === 0 && (
-                    <span className="text-sm text-muted-foreground ml-1">Añade valores para esta opción...</span>
-                  )}
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* --- Columna 1: Formulario de Opciones --- */}
+          <div className="space-y-6">
+            {/* --- 1. CHECKBOX --- */}
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="hasOptions"
+                checked={hasOptions}
+                onCheckedChange={handleOptionsToggle}
+              />
+              <Label htmlFor="hasOptions">
+                Este producto tiene múltiples opciones (ej. Talla, Color).
+              </Label>
+            </div>
+
+            {/* --- 2. DEFINICIÓN DE OPCIONES (Condicional) --- */}
+            {hasOptions && (
+              <div className="space-y-4 p-4 border rounded-md">
+                <Label>Opciones</Label>
+                {optionDefs.map((opt, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex gap-3 items-center">
+                      <Input
+                        placeholder="Opción (ej. Talla)"
+                        value={opt.name}
+                        onChange={(e) => updateOptionName(index, e.target.value)}
+                        className="w-1/3"
+                      />
+                      <Input
+                        placeholder="Escribe un valor (ej. 'M') y presiona Enter"
+                        value={currentTagValues[index] || ''}
+                        onChange={(e) => updateTagInputValue(index, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault(); 
+                            handleAddTag(index);
+                          }
+                        }}
+                        className="flex-1"
+                      />
+                      <Button variant="outline" size="icon" onClick={() => removeOptionDef(index)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2 min-h-[40px] p-2 border rounded-md bg-muted/50">
+                      {opt.values.map((value, valueIndex) => (
+                        <Badge key={valueIndex} variant="secondary">
+                          {value}
+                          <button 
+                            type="button" 
+                            className="ml-1 rounded-full outline-none"
+                            onClick={() => handleRemoveTag(index, valueIndex)}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                      {opt.values.length === 0 && (
+                        <span className="text-sm text-muted-foreground ml-1">Añade valores para esta opción...</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" onClick={addOptionDef}>
+                  Añadir otra opción
+                </Button>
               </div>
-            ))}
-            <Button type="button" variant="outline" onClick={addOptionDef}>
-              Añadir otra opción
+            )}
+
+            {/* --- 3. BOTÓN DE GENERAR --- */}
+            <Button type="button" onClick={handleGenerateVariants}>
+              Generar Variantes
             </Button>
           </div>
-        )}
+          {/* --- Fin Columna 1 --- */}
 
-        {/* --- 3. BOTÓN DE GENERAR --- */}
-        <Button type="button" onClick={handleGenerateVariants}>
-          Generar Variantes
-        </Button>
-
-        {/* --- 4. TABLA DE VISTA PREVIA (Sin cambios) --- */}
-        {fields.length > 0 && (
-          <div className="overflow-x-auto">
-            <h4 className="font-medium mb-2">Vista Previa de Variantes</h4>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Imagen</TableHead>
-                  <TableHead>Variante</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Precio</TableHead>
-                  <TableHead>Acción</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fields.map((field, index) => (
-                  <TableRow key={field.id}>
-                    {/* Imagen */}
-                    <TableCell>
-                      <Controller
-                        name={`variantes.${index}.foto`}
-                        control={control}
-                        render={({ field: imageField }) => (
-                          <Label className="flex items-center justify-center w-16 h-16 border rounded-md cursor-pointer hover:bg-muted">
-                            {uploadingIndex === index ? (
-                              <p className="text-xs">...</p>
-                            ) : imageField.value ? (
-                              <Image src={imageField.value} alt="variante" width={64} height={64} className="object-cover" />
-                            ) : (
-                              <UploadCloud className="h-6 w-6 text-muted-foreground" />
+          {/* --- Columna 2: Vista Previa (Tabla) --- */}
+          <div className="space-y-4">
+            {/* --- 4. TABLA DE VISTA PREVIA --- */}
+            {fields.length > 0 && (
+              <div className="overflow-x-auto">
+                <h4 className="font-medium mb-2">Vista Previa de Variantes</h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Imagen</TableHead>
+                      <TableHead>Variante</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Stock</TableHead>
+                      {/* --- INICIO DE LA ACTUALIZACIÓN --- */}
+                      {/* <TableHead>Precio</TableHead> <-- Eliminado */}
+                      {/* --- FIN DE LA ACTUALIZACIÓN --- */}
+                      <TableHead>Acción</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fields.map((field, index) => (
+                      <TableRow key={field.id}>
+                        {/* Imagen */}
+                        <TableCell>
+                          <Controller
+                            name={`variantes.${index}.foto`}
+                            control={control}
+                            render={({ field: imageField }) => (
+                              <Label className="flex items-center justify-center w-16 h-16 border rounded-md cursor-pointer hover:bg-muted">
+                                {uploadingIndex === index ? (
+                                  <p className="text-xs">...</p>
+                                ) : imageField.value ? (
+                                  <Image src={imageField.value} alt="variante" width={64} height={64} className="object-cover" />
+                                ) : (
+                                  <UploadCloud className="h-6 w-6 text-muted-foreground" />
+                                )}
+                                <Input type="file" className="hidden" accept="image/*"
+                                  onChange={(e) => handleVariantImageUpload(e, index)}
+                                  disabled={uploadingIndex === index}
+                                />
+                              </Label>
                             )}
-                            <Input type="file" className="hidden" accept="image/*"
-                              onChange={(e) => handleVariantImageUpload(e, index)}
-                              disabled={uploadingIndex === index}
-                            />
-                          </Label>
-                        )}
-                      />
-                    </TableCell>
-                    
-                    {/* Columna "Variante" (ej. "M / Negro") */}
-                    <TableCell className="font-medium">
-                      {Object.values(watch(`variantes.${index}.opciones`)).join(' / ') || 'Default'}
-                    </TableCell>
-                    
-                    {/* SKU */}
-                    <TableCell>
-                      <Input {...register(`variantes.${index}.sku`)} />
-                      {/* @ts-ignore */}
-                      {errors.variantes?.[index]?.sku && <p className="text-red-500 text-xs">{errors.variantes?.[index]?.sku?.message}</p>}
-                    </TableCell>
-                    
-                    {/* Stock */}
-                    <TableCell>
-                      <Input type="number" {...register(`variantes.${index}.stock`, { valueAsNumber: true })} />
-                      {/* @ts-ignore */}
-                      {errors.variantes?.[index]?.stock && <p className="text-red-500 text-xs">{errors.variantes?.[index]?.stock?.message}</p>}
-                    </TableCell>
-
-                    {/* Precio de Variante */}
-                    <TableCell>
-                      <Controller
-                        name={`variantes.${index}.precio`}
-                        control={control}
-                        render={({ field: priceField }) => (
-                          <Input
-                            type="text"
-                            placeholder="$ 0.00"
-                            value={formatCurrency(priceField.value)}
-                            onChange={(e) => {
-                              const numString = e.target.value.replace(/[$,\s]/g, '');
-                              const parsed = parseFloat(numString);
-                              priceField.onChange(isNaN(parsed) ? 0 : parsed);
-                            }}
                           />
-                        )}
-                      />
-                    </TableCell>
+                        </TableCell>
+                        
+                        {/* Columna "Variante" */}
+                        <TableCell className="font-medium">
+                          {Object.values(watch(`variantes.${index}.opciones`)).join(' / ') || 'Default'}
+                        </TableCell>
+                        
+                        {/* SKU */}
+                        <TableCell>
+                          <Input {...register(`variantes.${index}.sku`)} />
+                          {/* @ts-ignore */}
+                          {errors.variantes?.[index]?.sku && <p className="text-red-500 text-xs">{errors.variantes?.[index]?.sku?.message}</p>}
+                        </TableCell>
+                        
+                        {/* Stock */}
+                        <TableCell>
+                          <Input type="number" {...register(`variantes.${index}.stock`, { valueAsNumber: true })} />
+                          {/* @ts-ignore */}
+                          {errors.variantes?.[index]?.stock && <p className="text-red-500 text-xs">{errors.variantes?.[index]?.stock?.message}</p>}
+                        </TableCell>
 
-                    {/* Eliminar */}
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => remove(index)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                        {/* --- INICIO DE LA ACTUALIZACIÓN --- */}
+                        {/* Celda de Precio Eliminada */}
+                        {/* --- FIN DE LA ACTUALIZACIÓN --- */}
+
+                        {/* Eliminar */}
+                        <TableCell>
+                          <Button variant="ghost" size="icon" onClick={() => remove(index)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            {/* @ts-ignore */}
+            {errors.variantes && typeof errors.variantes === 'object' && !Array.isArray(errors.variantes) && <p className="text-red-500 text-sm">{errors.variantes.message}</p>}
           </div>
-        )}
-        {/* @ts-ignore */}
-        {errors.variantes && typeof errors.variantes === 'object' && !Array.isArray(errors.variantes) && <p className="text-red-500 text-sm">{errors.variantes.message}</p>}
+          {/* --- Fin Columna 2 --- */}
+
+        </div>
+        
       </CardContent>
     </Card>
   );

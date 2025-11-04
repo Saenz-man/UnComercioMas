@@ -6,22 +6,22 @@ import { z } from 'zod';
 import { Product, CreateProductPayload } from '@/types/product.types';
 import { useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
 
+// Importa tus componentes hijos
 import { DetallesPrincipales } from './DetallesPrincipales';
 import { Multimedia } from './Multimedia';
 import { OpcionesYVariantes } from './OpcionesYVariantes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
-// --- Definir el Schema (CORREGIDO) ---
+// --- Definir el Schema (validación opcional pero RECOMENDADA) ---
 const productFormSchema = z.object({
   nombre: z.string().min(3, 'El nombre es requerido'),
   precioPorPieza: z.number().min(0, 'El precio debe ser 0 o mayor'),
-  categoria_id: z.string().min(1, 'Debes seleccionar una categoría'), // Cambiado a min(1) por si no es UUID
+  categoria_id: z.string().min(1, 'Debes seleccionar una categoría'),
   slug: z.string().min(1, 'El slug es requerido'),
   modelo: z.string().nullable(),
   descripcion: z.string().nullable(),
   
-  // --- CORRECCIÓN 1: 'fotos' debe ser un array de objetos ---
   fotos: z.array(z.object({
     value: z.string().url('URL de foto no válida'),
   })).min(1, 'Sube al menos una foto'),
@@ -33,22 +33,20 @@ const productFormSchema = z.object({
     precio: z.number().min(1),
   })).optional(),
   
-  // --- CORRECCIÓN 2: Sintaxis de z.record() ---
   opciones: z.record(z.string(), z.array(z.string())), // { Talla: ['CH', 'M'] }
   
   variantes: z.array(z.object({
     sku: z.string().min(1, 'SKU requerido'),
     stock: z.number().min(0, 'Stock no puede ser negativo'),
     foto: z.string().url().nullable().or(z.literal('')),
-    
-    // --- CORRECIÓN 3: Sintaxis de z.record() ---
     opciones: z.record(z.string(), z.string()), // { Talla: 'CH', Color: 'Rojo' }
     precio: z.number().min(0).optional(),
   })).min(1, 'Debes generar al menos una variante'),
 });
 
+
 // --- Tipo inferido desde Zod (recomendado) ---
-export type ProductFormData = z.infer<typeof productFormSchema>; // <--- ¡AÑADE "export" AQUÍ!
+export type ProductFormData = z.infer<typeof productFormSchema>;
 
 
 // --- Props del Formulario ---
@@ -56,7 +54,7 @@ interface ProductFormProps {
   initialData?: Product; 
 }
 
-// --- Valores por Defecto (Modo Crear) (CORREGIDO) ---
+// --- Valores por Defecto (Modo Crear) ---
 const defaultValues: ProductFormData = {
   nombre: '',
   modelo: null,
@@ -65,14 +63,13 @@ const defaultValues: ProductFormData = {
   categoria_id: '',
   slug: '',
   preciosPorVolumen: [],
-  // --- CORRECCIÓN 4: 'fotos' es un array de objetos ---
   fotos: [], 
   video: null,
   opciones: {},
   variantes: [],
 };
 
-// --- Función para transformar Data de API a Data de Formulario (CORREGIDO) ---
+// --- Función para transformar Data de API a Data de Formulario ---
 const transformProductToPayload = (product: Product): ProductFormData => {
   return {
     nombre: product.nombre,
@@ -81,10 +78,7 @@ const transformProductToPayload = (product: Product): ProductFormData => {
     precioPorPieza: parseFloat(product.precioPorPieza) || 0,
     categoria_id: product.categoria.id,
     slug: product.slug,
-    
-    // --- CORRECCIÓN 5: Mapear string[] a { value: string }[] ---
     fotos: product.fotos.map(url => ({ value: url })), 
-    
     video: product.video,
     opciones: product.opciones,
     preciosPorVolumen: product.preciosPorVolumen.map(pv => ({
@@ -109,16 +103,13 @@ export function ProductForm({ initialData }: ProductFormProps) {
   const createProductMutation = useCreateProduct();
   const updateProductMutation = useUpdateProduct();
 
-  const methods = useForm<ProductFormData>({ // Usar el tipo inferido
-    resolver: zodResolver(productFormSchema), // ¡Validación activada!
+  const methods = useForm<ProductFormData>({ 
+    resolver: zodResolver(productFormSchema), 
     defaultValues: isEditMode ? transformProductToPayload(initialData) : defaultValues,
   });
-type ProductFormData = z.infer<typeof productFormSchema>;
-  // 3. Handler de Submit
-  // El 'data' ya está validado y tipado por Zod
+
   const onSubmit: SubmitHandler<ProductFormData> = (data) => {
     
-    // --- CORRECCIÓN 6: Transformar 'fotos' de vuelta a string[] para la API ---
     const payload: CreateProductPayload = {
       ...data,
       fotos: data.fotos.map(fotoObj => fotoObj.value),
@@ -142,19 +133,28 @@ type ProductFormData = z.infer<typeof productFormSchema>;
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
         
+        {/* --- INICIO DE LA ACTUALIZACIÓN DE DISEÑO --- */}
+        {/* Grid solo para Detalles y Multimedia */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Columna Principal (2/3) */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Aquí pasamos props para que DetallesPrincipales
-                pueda cargar las categorías */}
             <DetallesPrincipales />
-            <OpcionesYVariantes />
+            {/* 'OpcionesYVariantes' ya NO va aquí */}
           </div>
 
+          {/* Columna Lateral (1/3) */}
           <div className="lg:col-span-1 space-y-6">
             <Multimedia />
           </div>
         </div>
+        {/* --- FIN DE LA ACTUALIZACIÓN DE DISEÑO --- */}
 
+        {/* 'OpcionesYVariantes' ahora es un hermano del grid
+            y ocupará el ancho completo */}
+        <OpcionesYVariantes />
+
+        {/* Botón de Guardado */}
         <Card>
           <CardContent className="pt-6">
             <Button type="submit" disabled={isLoading}>
@@ -166,7 +166,6 @@ type ProductFormData = z.infer<typeof productFormSchema>;
             {Object.keys(methods.formState.errors).length > 0 && (
               <div className="text-red-500 text-sm mt-4">
                 <p>Por favor, revisa los errores en el formulario:</p>
-                {/* Descomenta para debuggear errores de Zod */}
                 {/* <pre className="text-xs">
                   {JSON.stringify(methods.formState.errors, null, 2)}
                 </pre> */}
@@ -179,3 +178,4 @@ type ProductFormData = z.infer<typeof productFormSchema>;
     </FormProvider>
   );
 }
+
