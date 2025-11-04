@@ -1,361 +1,203 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import {
   Control,
   UseFormRegister,
-  FieldErrors,
-  UseFieldArrayReturn,
-  FieldArrayWithId,
   UseFormSetValue,
   UseFormWatch,
-  Controller,
+  FieldErrors,
+  UseFieldArrayReturn,
 } from "react-hook-form";
-
 import { ProductFormValues } from "./ProductForm";
-import type { Category } from "@/types/category.types";
-import type { CategoryPayload } from "@/services/category.service";
-
-import { useCreateCategory } from "@/hooks/useCategories";
-import { useModels } from "@/hooks/useModels"; // ✅ trae los modelos desde productos
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { PlusCircle, Trash2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-
-type PreciosVolumenArray = UseFieldArrayReturn<
-  ProductFormValues,
-  "preciosPorVolumen",
-  "id"
->;
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 interface DetallesPrincipalesProps {
-  control: Control<ProductFormValues>;
   register: UseFormRegister<ProductFormValues>;
+  control: Control<ProductFormValues>;
+  errors: FieldErrors<ProductFormValues>;
   setValue: UseFormSetValue<ProductFormValues>;
   watch: UseFormWatch<ProductFormValues>;
-  errors: FieldErrors<ProductFormValues>;
-  categories: Category[];
+  categories: { id: string; nombre: string }[];
   isLoadingCategories: boolean;
-  precioFields: FieldArrayWithId<ProductFormValues, "preciosPorVolumen", "id">[];
-  appendPrecio: PreciosVolumenArray["append"];
-  removePrecio: PreciosVolumenArray["remove"];
+  precioFields: UseFieldArrayReturn<ProductFormValues, "preciosPorVolumen", "id">["fields"];
+  appendPrecio: UseFieldArrayReturn<ProductFormValues, "preciosPorVolumen", "id">["append"];
+  removePrecio: UseFieldArrayReturn<ProductFormValues, "preciosPorVolumen", "id">["remove"];
 }
 
-// Helper slugify
-const slugify = (text: string): string =>
-  text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w\-]+/g, "")
-    .replace(/\-\-+/g, "-");
-
-export function DetallesPrincipales({
-  control,
+export const DetallesPrincipales: React.FC<DetallesPrincipalesProps> = ({
   register,
-  setValue,
+  control,
   errors,
+  setValue,
+  watch,
   categories,
   isLoadingCategories,
   precioFields,
   appendPrecio,
   removePrecio,
-}: DetallesPrincipalesProps) {
-  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
-  const [isModelDialogOpen, setIsModelDialogOpen] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [newModelName, setNewModelName] = useState("");
-
-  const createCategoryMutation = useCreateCategory();
-  const { data: models = [], isLoading: isLoadingModels } = useModels();
-
-  // Crear colección
-  const handleCreateCategory = async () => {
-    if (!newCategoryName.trim()) return;
-    const payload: CategoryPayload = {
-      nombre: newCategoryName,
-      slug: slugify(newCategoryName),
-    };
-    createCategoryMutation.mutate(payload, {
-      onSuccess: (newCategory) => {
-        setValue("categoria_id", newCategory.id, { shouldDirty: true });
-        toast.success("Colección creada con éxito");
-        setNewCategoryName("");
-        setIsCategoryDialogOpen(false);
-      },
-    });
-  };
-
-  // Crear modelo
-  const handleCreateModel = () => {
-    if (!newModelName.trim()) return;
-    setValue("modelo", newModelName.trim(), { shouldDirty: true });
-    toast.success(`Modelo "${newModelName}" agregado`);
-    setNewModelName("");
-    setIsModelDialogOpen(false);
-  };
+}) => {
+  const precios = watch("preciosPorVolumen");
 
   return (
-    <div className="p-6 border rounded-lg shadow-sm space-y-6 bg-white">
-      <h2 className="text-xl font-semibold">Detalles Principales</h2>
-
-      {/* Nombre */}
-      <div>
-        <Label htmlFor="nombre">Nombre del producto</Label>
-        <Input id="nombre" {...register("nombre")} />
-        {errors.nombre && (
-          <p className="text-sm text-destructive mt-1">
-            {errors.nombre.message}
-          </p>
-        )}
-      </div>
-
-      {/* Colección y Modelo juntos */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Colección */}
-        <div>
-          <Label htmlFor="categoria_id">Colección</Label>
-          <Controller
-            name="categoria_id"
-            control={control}
-            render={({ field }) => (
-              <Select
-                value={field.value ?? ""}
-                onValueChange={(value) => {
-                  if (value === "crear_nueva_categoria")
-                    setIsCategoryDialogOpen(true);
-                  else field.onChange(value);
-                }}
-                disabled={isLoadingCategories}
-              >
-                <SelectTrigger id="categoria_id">
-                  <SelectValue placeholder="Selecciona una colección..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {isLoadingCategories ? (
-                    <SelectItem value="loading" disabled>
-                      Cargando...
-                    </SelectItem>
-                  ) : (
-                    <>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.nombre}
-                        </SelectItem>
-                      ))}
-                      <SelectItem
-                        value="crear_nueva_categoria"
-                        className="text-blue-600 font-medium"
-                      >
-                        + Crear nueva colección
-                      </SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
+    <Card className="shadow-sm border rounded-2xl">
+      <CardHeader>
+        <CardTitle className="text-xl font-semibold">Detalles principales</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Nombre y slug */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Nombre del producto</Label>
+            <Input
+              placeholder="Ej: Playera Brush Manga Corta"
+              {...register("nombre")}
+            />
+            {errors.nombre && (
+              <p className="text-red-500 text-sm mt-1">{errors.nombre.message}</p>
             )}
+          </div>
+
+          <div>
+            <Label>Slug</Label>
+            <Input
+              placeholder="Ej: playera-brush-manga-corta"
+              {...register("slug")}
+            />
+            {errors.slug && (
+              <p className="text-red-500 text-sm mt-1">{errors.slug.message}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Descripción */}
+        <div>
+          <Label>Descripción</Label>
+          <Textarea
+            placeholder="Describe el producto brevemente..."
+            {...register("descripcion")}
           />
         </div>
 
-        {/* Modelo */}
-        <div>
-          <Label htmlFor="modelo">Modelo</Label>
-          <Controller
-            name="modelo"
-            control={control}
-            render={({ field }) => (
-              <Select
-                value={field.value ?? ""}
-                onValueChange={(value) => {
-                  if (value === "crear_nuevo_modelo")
-                    setIsModelDialogOpen(true);
-                  else field.onChange(value);
-                }}
-                disabled={isLoadingModels}
-              >
-                <SelectTrigger id="modelo">
-                  <SelectValue placeholder="Selecciona o crea un modelo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {isLoadingModels ? (
-                    <SelectItem value="loading" disabled>
-                      Cargando...
-                    </SelectItem>
-                  ) : (
-                    <>
-                      {models.map((m) => (
-                        <SelectItem key={m.id} value={m.nombre}>
-                          {m.nombre}
-                        </SelectItem>
-                      ))}
-                      <SelectItem
-                        value="crear_nuevo_modelo"
-                        className="text-blue-600 font-medium"
-                      >
-                        + Crear nuevo modelo
-                      </SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
+        {/* Precio base y modelo */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Precio por pieza</Label>
+            <Input
+              type="number"
+              step="0.01"
+              {...register("precioPorPieza", { valueAsNumber: true })}
+            />
+            {errors.precioPorPieza && (
+              <p className="text-red-500 text-sm mt-1">
+                {errors.precioPorPieza.message}
+              </p>
             )}
-          />
+          </div>
+
+          <div>
+            <Label>Modelo</Label>
+            <Input
+              placeholder="Ej: Hombre / Mujer / Unisex"
+              {...register("modelo")}
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Descripción */}
-      <div>
-        <Label htmlFor="descripcion">Descripción</Label>
-        <Textarea id="descripcion" {...register("descripcion")} />
-      </div>
-
-      {/* Slug */}
-      <div>
-        <Label htmlFor="slug">Slug (URL)</Label>
-        <Input id="slug" {...register("slug")} />
-        {errors.slug && (
-          <p className="text-sm text-destructive mt-1">
-            {errors.slug.message}
-          </p>
-        )}
-      </div>
-
-      {/* Precio */}
-      <div className="pt-6 border-t space-y-4">
-        <h3 className="text-lg font-medium">Precios</h3>
-
+        {/* Categoría */}
         <div>
-          <Label htmlFor="precioPorPieza">Precio por pieza</Label>
-          <Input
-            id="precioPorPieza"
-            type="number"
-            step="0.01"
-            {...register("precioPorPieza", { valueAsNumber: true })}
-          />
-          {errors.precioPorPieza && (
-            <p className="text-sm text-destructive mt-1">
-              {errors.precioPorPieza.message}
+          <Label>Categoría</Label>
+          {isLoadingCategories ? (
+            <div className="flex items-center gap-2 text-gray-500">
+              <Loader2 className="animate-spin w-4 h-4" /> Cargando categorías...
+            </div>
+          ) : (
+            <Select
+              onValueChange={(value) => setValue("categoria_id", value)}
+              defaultValue={watch("categoria_id")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona una categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {errors.categoria_id && (
+            <p className="text-red-500 text-sm mt-1">
+              {errors.categoria_id.message}
             </p>
           )}
         </div>
 
+        {/* Precios por volumen */}
         <div>
-          <h4 className="text-md font-medium">Precios por mayoreo</h4>
+          <div className="flex items-center justify-between mb-2">
+            <Label>Precios por volumen</Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => appendPrecio({ cantidad_minima: 0, precio: 0 })}
+            >
+              <Plus className="w-4 h-4 mr-1" /> Agregar nivel
+            </Button>
+          </div>
+
           <div className="space-y-3">
+            {precios.length === 0 && (
+              <p className="text-gray-500 text-sm">Sin precios por volumen.</p>
+            )}
             {precioFields.map((field, index) => (
-              <div key={field.id} className="grid grid-cols-2 gap-4 items-end">
-                <div>
-                  <Label className="text-xs">Cantidad mínima</Label>
+              <div
+                key={field.id}
+                className="grid grid-cols-5 items-center gap-3"
+              >
+                <div className="col-span-2">
+                  <Label>Cantidad mínima</Label>
                   <Input
                     type="number"
-                    {...register(
-                      `preciosPorVolumen.${index}.cantidad_minima`,
-                      { valueAsNumber: true }
-                    )}
+                    {...register(`preciosPorVolumen.${index}.cantidad_minima`, {
+                      valueAsNumber: true,
+                    })}
                   />
                 </div>
-                <div className="flex gap-2">
-                  <div className="grow">
-                    <Label className="text-xs">Precio por mayoreo</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      {...register(`preciosPorVolumen.${index}.precio`, {
-                        valueAsNumber: true,
-                      })}
-                    />
-                  </div>
+                <div className="col-span-2">
+                  <Label>Precio unitario</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    {...register(`preciosPorVolumen.${index}.precio`, {
+                      valueAsNumber: true,
+                    })}
+                  />
+                </div>
+                <div className="flex justify-end">
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="destructive"
                     size="icon"
                     onClick={() => removePrecio(index)}
-                    className="text-destructive hover:bg-destructive/10"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
             ))}
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              appendPrecio({ cantidad_minima: 0, precio: 0 })
-            }
-          >
-            <PlusCircle className="h-4 w-4 mr-2" /> Añadir nivel
-          </Button>
         </div>
-      </div>
-
-      {/* --- Diálogo Crear Colección --- */}
-      <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nueva colección</DialogTitle>
-          </DialogHeader>
-          <Input
-            placeholder="Nombre de la colección"
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreateCategory} disabled={createCategoryMutation.isPending}>
-              {createCategoryMutation.isPending && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              Crear
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* --- Diálogo Crear Modelo --- */}
-      <Dialog open={isModelDialogOpen} onOpenChange={setIsModelDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nuevo modelo</DialogTitle>
-          </DialogHeader>
-          <Input
-            placeholder="Nombre del modelo"
-            value={newModelName}
-            onChange={(e) => setNewModelName(e.target.value)}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModelDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreateModel}>
-              Crear
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+      </CardContent>
+    </Card>
   );
-}
+};

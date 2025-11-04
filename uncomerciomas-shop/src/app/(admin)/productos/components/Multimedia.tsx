@@ -1,115 +1,166 @@
-import React from "react";
-import {
-  UseFormWatch,
-  UseFormSetValue,
-  UseFormGetValues,
-} from "react-hook-form";
-// --- 1. IMPORTAR EL TIPO DEL FORMULARIO ---
-import { ProductFormValues } from "./ProductForm"; 
-// UI
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Loader2, X, ImageOff } from "lucide-react";
+"use client";
 
-// --- 2. ACTUALIZAR LAS PROPS ---
+import React from "react";
+import { UseFormSetValue, UseFormWatch } from "react-hook-form";
+import { ProductFormValues } from "./ProductForm";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, Trash2, Upload } from "lucide-react";
+import Image from "next/image";
+
 interface MultimediaProps {
-  watch: UseFormWatch<ProductFormValues>; // <-- Usar ProductFormValues
-  setValue: UseFormSetValue<ProductFormValues>; // <-- Usar ProductFormValues
-  getValues?: UseFormGetValues<ProductFormValues>; 
+  watch: UseFormWatch<ProductFormValues>;
+  setValue: UseFormSetValue<ProductFormValues>;
   handleFileUpload: (
-    e: React.ChangeEvent<HTMLInputElement>,
-    fieldName: "fotos" | `variantes.${number}.foto` | "video"
+    event: React.ChangeEvent<HTMLInputElement>,
+    fieldName: "fotos" | "video" | `variantes.${number}.foto`
   ) => Promise<void>;
-  removeMainPhoto: (indexToRemove: number) => void; // <-- Prop añadida
   isUploading: boolean;
-  SERVER_URL: string | undefined;
+  SERVER_URL?: string;
+  removeMainPhoto: (indexToRemove: number) => void;
 }
 
-export function Multimedia({
+export const Multimedia: React.FC<MultimediaProps> = ({
   watch,
   setValue,
   handleFileUpload,
-  removeMainPhoto,
   isUploading,
   SERVER_URL,
-}: MultimediaProps) {
-
-  const fotos = watch("fotos") ?? [];
+  removeMainPhoto,
+}) => {
+  const fotos = watch("fotos") || [];
   const video = watch("video");
-  const mainPhoto = fotos[0] || null;
-
-  const mainPhotoUrl =
-    mainPhoto && !mainPhoto.startsWith("http")
-      ? `${SERVER_URL}${mainPhoto}`
-      : mainPhoto;
 
   return (
-    <div className="p-6 border rounded-lg shadow-sm space-y-4 bg-white">
-      
-      <div className="aspect-square border rounded-md bg-muted/30 flex items-center justify-center overflow-hidden">
-        {mainPhotoUrl ? (
-          <img
-            src={mainPhotoUrl}
-            alt="Foto principal del producto"
-            className="w-full h-full object-cover"
+    <Card className="shadow-sm border rounded-2xl">
+      <CardHeader>
+        <CardTitle className="text-xl font-semibold">Multimedia</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Subir fotos */}
+        <div>
+          <label className="block font-medium mb-2">Fotos del producto</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => handleFileUpload(e, "fotos")}
+            className="hidden"
+            id="file-upload-fotos"
           />
-        ) : (
-          <ImageOff className="h-16 w-16 text-muted-foreground" />
-        )}
-      </div>
+          <label htmlFor="file-upload-fotos">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUploading}
+              className="flex items-center gap-2"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Subiendo...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Subir foto
+                </>
+              )}
+            </Button>
+          </label>
 
-      <div>
-        <Label htmlFor="main-photo-upload" className="sr-only">Agregar/Actualizar Foto</Label>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          disabled={isUploading}
-          onClick={() => document.getElementById('main-photo-upload')?.click()}
-        >
-          {isUploading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          Agregar/Actualizar Foto
-        </Button>
-        <Input
-          id="main-photo-upload"
-          type="file"
-          accept="image/*"
-          onChange={(e) => handleFileUpload(e, "fotos")}
-          className="hidden" 
-          disabled={isUploading}
-        />
-      </div>
+          {/* Vista previa de fotos */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+            {fotos.length === 0 && (
+              <p className="text-gray-500 text-sm col-span-full">
+                No se han subido imágenes aún.
+              </p>
+            )}
+            {fotos.map((foto, index) => {
+              const fotoSrc =
+                foto && foto.startsWith("http")
+                  ? foto
+                  : foto
+                  ? `${SERVER_URL || ""}${foto}`
+                  : "/vacio.jpg"; // fallback
 
-      <div>
-        <Label htmlFor="main-video-upload" className="sr-only">Agregar Video</Label>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          disabled={isUploading}
-          onClick={() => document.getElementById('main-video-upload')?.click()}
-        >
-          {isUploading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          {video ? "Actualizar Video" : "Agregar Video"}
-        </Button>
-        <Input
-          id="main-video-upload"
-          type="file"
-          accept="video/*"
-          onChange={(e) => handleFileUpload(e, "video")}
-          className="hidden"
-          disabled={isUploading}
-        />
-      </div>
-
-      {video && (
-        <div className="mt-2 relative w-full border rounded p-2">
-          {/* ... (previsualización de video sin cambios) ... */}
+              return (
+                <div
+                  key={index}
+                  className="relative group border rounded-lg overflow-hidden"
+                >
+                  <Image
+                    src={fotoSrc || "/vacio.jpg"}
+                    alt={`Foto ${index + 1}`}
+                    width={200}
+                    height={200}
+                    className="object-cover w-full h-32 rounded-md"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => foto && removeMainPhoto(index)}
+                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      )}
-    </div>
-  );
-}
 
-// export default Multimedia; // No es necesario si usas 'export function'
+        {/* Subir video */}
+        <div>
+          <label className="block font-medium mb-2">Video (opcional)</label>
+          <input
+            type="file"
+            accept="video/*"
+            onChange={(e) => handleFileUpload(e, "video")}
+            className="hidden"
+            id="file-upload-video"
+          />
+          <label htmlFor="file-upload-video">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUploading}
+              className="flex items-center gap-2"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Subiendo...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Subir video
+                </>
+              )}
+            </Button>
+          </label>
+
+          {video && (
+            <div className="mt-4 relative">
+              <video
+                src={
+                  video.startsWith("http")
+                    ? video
+                    : `${SERVER_URL || ""}${video}`
+                }
+                controls
+                className="w-full rounded-lg"
+              />
+              <button
+                type="button"
+                onClick={() => setValue("video", null)}
+                className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
