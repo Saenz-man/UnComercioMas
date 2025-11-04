@@ -29,11 +29,11 @@ export const useProduct = (id?: string) => {
 };
 
 // ======================================================
-// --- Hook: Crear producto (ACTUALIZADO) ---
+// --- Hook: Crear producto (con Redirección) ---
 // ======================================================
 export const useCreateProduct = () => {
   const queryClient = useQueryClient();
-  const router = useRouter(); // <-- 1. Obtener el router
+  const router = useRouter(); 
 
   return useMutation({
     mutationFn: (productData: CreateProductPayload) => ProductService.create(productData),
@@ -41,7 +41,7 @@ export const useCreateProduct = () => {
     onSuccess: (newProduct: Product) => {
       toast.success(`Producto "${newProduct.nombre}" creado exitosamente.`);
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      router.push('/productos'); // <-- 2. Redirigir a la tabla
+      router.push('/productos'); 
     },
 
     onError: (error: any) => {
@@ -79,8 +79,9 @@ export const useDeleteProduct = () => {
   });
 };
 
+
 // ======================================================
-// --- Hook: Actualizar producto (CORREGIDO) ---
+// --- Hook: Actualizar producto (¡CORREGIDO!) ---
 // ======================================================
 export const useUpdateProduct = () => {
   const queryClient = useQueryClient();
@@ -89,26 +90,24 @@ export const useUpdateProduct = () => {
   return useMutation({
     mutationFn: ({
       productId,
-      updateData, // Este es el payload completo del formulario
+      updateData,
     }: {
       productId: string;
       updateData: Partial<CreateProductPayload>;
     }) => {
       // --- INICIO DE LA CORRECCIÓN ---
-      // Desestructuramos el payload para EXCLUIR 'variantes' y 'opciones'
-      // Esto evita que el backend reciba datos que no espera en este endpoint.
+      // Desestructuramos el payload para EXCLUIR SOLAMENTE 'variantes'
       const { 
         variantes, 
-        opciones, 
-        ...payloadForUpdate 
+        ...payloadForUpdate // 'opciones' AHORA SÍ se queda en el payload
       } = updateData;
 
-      // 'payloadForUpdate' AHORA CONTIENE:
-      // nombre, slug, precioPorPieza, categoria_id, fotos, video, preciosPorVolumen
+      // 'payloadForUpdate' ahora contiene:
+      // nombre, slug, precio, fotos, Y TAMBIÉN 'opciones'
       // PERO YA NO CONTIENE:
-      // variantes, opciones
+      // 'variantes' (que es lo que causaba el Error 400 y el reseteo de stock)
       
-      // Enviamos solo los datos del producto "Padre"
+      // Enviamos los datos del "Padre" Y la nueva estructura de opciones
       return ProductService.update(productId, payloadForUpdate);
       // --- FIN DE LA CORRECCIÓN ---
     },
