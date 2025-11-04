@@ -29,10 +29,11 @@ export const useProduct = (id?: string) => {
 };
 
 // ======================================================
-// --- Hook: Crear producto ---
+// --- Hook: Crear producto (ACTUALIZADO) ---
 // ======================================================
 export const useCreateProduct = () => {
   const queryClient = useQueryClient();
+  const router = useRouter(); // <-- 1. Obtener el router
 
   return useMutation({
     mutationFn: (productData: CreateProductPayload) => ProductService.create(productData),
@@ -40,6 +41,7 @@ export const useCreateProduct = () => {
     onSuccess: (newProduct: Product) => {
       toast.success(`Producto "${newProduct.nombre}" creado exitosamente.`);
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      router.push('/productos'); // <-- 2. Redirigir a la tabla
     },
 
     onError: (error: any) => {
@@ -78,7 +80,7 @@ export const useDeleteProduct = () => {
 };
 
 // ======================================================
-// --- Hook: Actualizar producto ---
+// --- Hook: Actualizar producto (CORREGIDO) ---
 // ======================================================
 export const useUpdateProduct = () => {
   const queryClient = useQueryClient();
@@ -87,11 +89,29 @@ export const useUpdateProduct = () => {
   return useMutation({
     mutationFn: ({
       productId,
-      updateData,
+      updateData, // Este es el payload completo del formulario
     }: {
       productId: string;
       updateData: Partial<CreateProductPayload>;
-    }) => ProductService.update(productId, updateData),
+    }) => {
+      // --- INICIO DE LA CORRECCIÓN ---
+      // Desestructuramos el payload para EXCLUIR 'variantes' y 'opciones'
+      // Esto evita que el backend reciba datos que no espera en este endpoint.
+      const { 
+        variantes, 
+        opciones, 
+        ...payloadForUpdate 
+      } = updateData;
+
+      // 'payloadForUpdate' AHORA CONTIENE:
+      // nombre, slug, precioPorPieza, categoria_id, fotos, video, preciosPorVolumen
+      // PERO YA NO CONTIENE:
+      // variantes, opciones
+      
+      // Enviamos solo los datos del producto "Padre"
+      return ProductService.update(productId, payloadForUpdate);
+      // --- FIN DE LA CORRECCIÓN ---
+    },
 
     onSuccess: (updatedProduct: Product) => {
       toast.success(`Producto "${updatedProduct.nombre}" actualizado con éxito.`);
@@ -156,3 +176,4 @@ export const useDeleteVariant = () => {
     },
   });
 };
+

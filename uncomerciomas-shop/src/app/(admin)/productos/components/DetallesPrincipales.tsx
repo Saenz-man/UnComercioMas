@@ -1,18 +1,19 @@
 'use client';
 
-import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
-// --- (CORRECCIÓN) Importar el tipo de Zod desde ProductForm ---
+// --- INICIO: NUEVAS IMPORTACIONES ---
+import { useFormContext, useFieldArray, Controller, ControllerRenderProps } from 'react-hook-form';
+// --- CORRECCIÓN 1: Importar 'React' ---
+import React, { useState, useEffect, useRef } from 'react';
+// --- FIN: NUEVAS IMPORTACIONES ---
+
 import { ProductFormData } from './ProductForm'; 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+// --- CORRECCIÓN 2: Quitar 'InputProps' ---
+import { Input } from '@/components/ui/input'; 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
-import { useEffect } from 'react';
-
-// --- INICIO: NUEVAS IMPORTACIONES ---
-// Importamos el hook que tú proporcionaste
 import { useCategories } from '@/hooks/useCategories'; 
 import {
   Select,
@@ -21,26 +22,103 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// --- FIN: NUEVAS IMPORTACIONES ---
 
-
-// --- Funciones de Formato de Moneda ---
+// --- Funciones de Formato de Moneda (Ligeramente modificadas) ---
+/**
+ * Parsea un string (formateado o no) a un número.
+ * "100.43" -> 100.43
+ * "$ 100.43" -> 100.43
+ * "100." -> 100
+ */
 const parseCurrency = (value: string): number => {
-  if (!value) return 0;
-  // Quita $ , y espacios
+  if (typeof value !== 'string') return 0;
+  // Permite al usuario escribir "100." o ".43"
+  if (value === '.') return 0;
+  
   const numString = value.replace(/[$,\s]/g, '');
+  if (numString === '') return 0;
+  
   const parsed = parseFloat(numString);
   return isNaN(parsed) ? 0 : parsed;
 };
 
+/**
+ * Formatea un número a un string de moneda.
+ * 100.43 -> "$ 100.43"
+ * 100 -> "$ 100.00"
+ */
 const formatCurrency = (value: number | null | undefined): string => {
   const num = Number(value);
   if (isNaN(num) || num === 0) {
     return ''; // Devuelve vacío para mostrar el placeholder
   }
-  // Formato simple con 2 decimales
   return `$ ${num.toFixed(2)}`;
 };
+
+// --- INICIO: NUEVO COMPONENTE REUTILIZABLE ---
+
+// --- CORRECCIÓN 3: Extender 'React.InputHTMLAttributes' ---
+interface CurrencyInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  // Pasamos el objeto 'field' del Controller de RHF
+  field: ControllerRenderProps<any, any>; 
+}
+
+/**
+ * Componente Input que maneja el formato de moneda
+ * onFocus (muestra el número) y onBlur (muestra el formato $).
+ */
+const CurrencyInput = ({ field, ...props }: CurrencyInputProps) => {
+  // Estado local para el valor que se muestra en el input
+  const [displayValue, setDisplayValue] = useState(
+    field.value ? formatCurrency(field.value) : ''
+  );
+
+  // Ref para saber si el campo está enfocado
+  const isFocusedRef = useRef(false);
+
+  // Sincroniza el valor del formulario (RHF) con el display local
+  // si el valor de RHF cambia *externamente* (ej. reset, carga inicial)
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setDisplayValue(field.value ? formatCurrency(field.value) : '');
+    }
+  }, [field.value]); // Solo se ejecuta si el valor de RHF cambia
+
+  return (
+    <Input
+      {...props} // Pasa props (ej. placeholder, id)
+      type="text" // Debe ser "text" para mostrar "$"
+      value={displayValue}
+      onFocus={() => {
+        isFocusedRef.current = true;
+        // Al enfocar: mostrar el número crudo (o vacío)
+        setDisplayValue(field.value ? String(field.value) : '');
+      }}
+      onChange={(e) => {
+        // Mientras escribe: solo permitir números y un punto
+        let value = e.target.value;
+        value = value.replace(/[^0-9.]/g, ''); // Solo números y puntos
+        
+        // Asegurar un solo punto decimal
+        const parts = value.split('.');
+        if (parts.length > 2) {
+          value = parts[0] + '.' + parts.slice(1).join('');
+        }
+        
+        setDisplayValue(value); // Actualizar el input local
+        field.onChange(parseCurrency(value)); // Actualizar RHF con el número
+      }}
+      onBlur={() => {
+        isFocusedRef.current = false;
+        // Al desenfocar: formatear el valor
+        // Usamos field.value (el número) que ya fue actualizado en onChange
+        setDisplayValue(field.value ? formatCurrency(field.value) : '');
+        field.onBlur(); // Notificar a RHF que el campo fue "tocado"
+      }}
+    />
+  );
+};
+// --- FIN: NUEVO COMPONENTE REUTILIZABLE ---
 
 
 // Función simple para generar slugs
@@ -55,20 +133,14 @@ const slugify = (text: string) =>
 
 
 export function DetallesPrincipales() {
-  // 1. Conectarse al formulario padre (Usando el tipo de Zod)
   const { register, control, watch, setValue, formState: { errors } } = useFormContext<ProductFormData>();
-
-  // --- INICIO: LLAMAR AL HOOK DE CATEGORÍAS ---
   const { data: categories, isLoading: isLoadingCategories } = useCategories();
-  // --- FIN: LLAMAR AL HOOK DE CATEGORÍAS ---
-
-  // 2. Hook para "preciosPorVolumen"
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'preciosPorVolumen',
   });
 
-  // 3. Lógica SLUG
+  // Lógica SLUG (sin cambios)
   const nombre = watch('nombre');
   const modelo = watch('modelo');
   useEffect(() => {
@@ -85,59 +157,49 @@ export function DetallesPrincipales() {
         <CardTitle>Detalles Principales</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Nombre */}
+        {/* Nombre, Modelo, Slug, Descripción (sin cambios) */}
         <div>
           <Label htmlFor="nombre">Nombre del Producto</Label>
           <Input id="nombre" {...register('nombre')} />
           {/* @ts-ignore */}
           {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre.message}</p>}
         </div>
-
-        {/* Modelo */}
         <div>
           <Label htmlFor="modelo">Modelo</Label>
           <Input id="modelo" {...register('modelo')} />
         </div>
-        
-        {/* Slug */}
         <div>
           <Label htmlFor="slug">Slug (URL)</Label>
           <Input id="slug" {...register('slug')} />
            {/* @ts-ignore */}
           {errors.slug && <p className="text-red-500 text-sm">{errors.slug.message}</p>}
         </div>
-
-        {/* Descripción */}
         <div>
           <Label htmlFor="descripcion">Descripción</Label>
           <Textarea id="descripcion" {...register('descripcion')} />
         </div>
 
-        {/* Precio por Pieza */}
+        {/* --- INICIO: ACTUALIZACIÓN Precio por Pieza --- */}
         <div>
           <Label htmlFor="precioPorPieza">Precio por Pieza</Label>
           <Controller
             name="precioPorPieza"
             control={control}
             render={({ field }) => (
-              <Input
+              // Usamos el nuevo componente
+              <CurrencyInput
+                field={field}
                 id="precioPorPieza"
-                type="text" 
                 placeholder="$ 0.00"
-                value={formatCurrency(field.value)} 
-                onChange={(e) => {
-                  const numValue = parseCurrency(e.target.value); 
-                  field.onChange(numValue); 
-                }}
-                onBlur={field.onBlur} 
               />
             )}
           />
            {/* @ts-ignore */}
           {errors.precioPorPieza && <p className="text-red-500 text-sm">{errors.precioPorPieza.message}</p>}
         </div>
+        {/* --- FIN: ACTUALIZACIÓN Precio por Pieza --- */}
         
-        {/* --- Categoría (ACTUALIZADO) --- */}
+        {/* Categoría (sin cambios) */}
         <div>
           <Label>Categoría</Label>
           <Controller
@@ -157,7 +219,6 @@ export function DetallesPrincipales() {
                   } />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Mapeamos sobre las categorías de tu hook */}
                   {categories?.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.nombre}
@@ -171,7 +232,7 @@ export function DetallesPrincipales() {
           {errors.categoria_id && <p className="text-red-500 text-sm">{errors.categoria_id.message}</p>}
         </div>
 
-        {/* Precios por Volumen */}
+        {/* --- INICIO: ACTUALIZACIÓN Precios por Volumen --- */}
         <div>
           <h4 className="font-medium mb-2">Precios por Volumen</h4>
           <div className="space-y-3">
@@ -183,18 +244,14 @@ export function DetallesPrincipales() {
                   {...register(`preciosPorVolumen.${index}.cantidad_minima`, { valueAsNumber: true })}
                 />
                 
+                {/* Usamos el nuevo componente aquí también */}
                 <Controller
                   name={`preciosPorVolumen.${index}.precio`}
                   control={control}
                   render={({ field: priceField }) => (
-                    <Input
-                      type="text"
+                    <CurrencyInput
+                      field={priceField}
                       placeholder="Precio"
-                      value={formatCurrency(priceField.value)}
-                      onChange={(e) => {
-                        priceField.onChange(parseCurrency(e.target.value));
-                      }}
-                      onBlur={priceField.onBlur}
                     />
                   )}
                 />
@@ -214,6 +271,7 @@ export function DetallesPrincipales() {
             Añadir Nivel de Precio
           </Button>
         </div>
+        {/* --- FIN: ACTUALIZACIÓN Precios por Volumen --- */}
       </CardContent>
     </Card>
   );
