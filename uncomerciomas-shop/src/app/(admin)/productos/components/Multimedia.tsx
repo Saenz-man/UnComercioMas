@@ -1,166 +1,134 @@
-"use client";
+'use client';
 
-import React from "react";
-import { UseFormSetValue, UseFormWatch } from "react-hook-form";
-import { ProductFormValues } from "./ProductForm";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Loader2, Trash2, Upload } from "lucide-react";
-import Image from "next/image";
+import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
+// Usamos el tipo inferido de Zod
+import { ProductFormData } from './ProductForm'; // Asumiendo que exportas el tipo
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { useUpload } from '@/hooks/useUpload';
+import Image from 'next/image';
+import { Trash2, UploadCloud } from 'lucide-react';
+import { useState } from 'react';
 
-interface MultimediaProps {
-  watch: UseFormWatch<ProductFormValues>;
-  setValue: UseFormSetValue<ProductFormValues>;
-  handleFileUpload: (
-    event: React.ChangeEvent<HTMLInputElement>,
-    fieldName: "fotos" | "video" | `variantes.${number}.foto`
-  ) => Promise<void>;
-  isUploading: boolean;
-  SERVER_URL?: string;
-  removeMainPhoto: (indexToRemove: number) => void;
-}
+export function Multimedia() {
+  // Quitamos CreateProductPayload y usamos el tipo de RHF
+  const { control, register, setValue, formState: { errors } } = useFormContext<ProductFormData>();
+  const [isUploading, setIsUploading] = useState(false);
+  const uploadMutation = useUpload();
 
-export const Multimedia: React.FC<MultimediaProps> = ({
-  watch,
-  setValue,
-  handleFileUpload,
-  isUploading,
-  SERVER_URL,
-  removeMainPhoto,
-}) => {
-  const fotos = watch("fotos") || [];
-  const video = watch("video");
+  // --- CORRECCIÓN 1: 'name' ahora es "fotos" y es válido ---
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'fotos',
+  });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    uploadMutation.mutate(file, {
+      onSuccess: (url) => {
+        // --- CORRECCIÓN 2: 'append' espera un objeto ---
+        append({ value: url }); 
+        setIsUploading(false);
+      },
+      onError: () => {
+        setIsUploading(false);
+      },
+    });
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    uploadMutation.mutate(file, {
+      onSuccess: (url) => {
+        setValue('video', url, { shouldValidate: true }); 
+        setIsUploading(false);
+      },
+      onError: () => {
+        setIsUploading(false);
+      },
+    });
+  };
 
   return (
-    <Card className="shadow-sm border rounded-2xl">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">Multimedia</CardTitle>
+        <CardTitle>Multimedia</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Subir fotos */}
         <div>
-          <label className="block font-medium mb-2">Fotos del producto</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleFileUpload(e, "fotos")}
-            className="hidden"
-            id="file-upload-fotos"
-          />
-          <label htmlFor="file-upload-fotos">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isUploading}
-              className="flex items-center gap-2"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Subiendo...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4" />
-                  Subir foto
-                </>
-              )}
-            </Button>
-          </label>
-
-          {/* Vista previa de fotos */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-            {fotos.length === 0 && (
-              <p className="text-gray-500 text-sm col-span-full">
-                No se han subido imágenes aún.
-              </p>
-            )}
-            {fotos.map((foto, index) => {
-              const fotoSrc =
-                foto && foto.startsWith("http")
-                  ? foto
-                  : foto
-                  ? `${SERVER_URL || ""}${foto}`
-                  : "/vacio.jpg"; // fallback
-
-              return (
-                <div
-                  key={index}
-                  className="relative group border rounded-lg overflow-hidden"
+          <Label>Fotos del Producto</Label>
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {fields.map((field, index) => (
+              <div key={field.id} className="relative group">
+                {/* --- CORRECCIÓN 3: La URL está en 'field.value' --- */}
+                <Image
+                  src={field.value} 
+                  alt={`Foto ${index + 1}`}
+                  width={150}
+                  height={150}
+                  className="rounded-md object-cover aspect-square"
+                />
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100"
+                  onClick={() => remove(index)}
                 >
-                  <Image
-                    src={fotoSrc || "/vacio.jpg"}
-                    alt={`Foto ${index + 1}`}
-                    width={200}
-                    height={200}
-                    className="object-cover w-full h-32 rounded-md"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => foto && removeMainPhoto(index)}
-                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Subir video */}
-        <div>
-          <label className="block font-medium mb-2">Video (opcional)</label>
-          <input
-            type="file"
-            accept="video/*"
-            onChange={(e) => handleFileUpload(e, "video")}
-            className="hidden"
-            id="file-upload-video"
-          />
-          <label htmlFor="file-upload-video">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isUploading}
-              className="flex items-center gap-2"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Subiendo...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4" />
-                  Subir video
-                </>
-              )}
-            </Button>
-          </label>
-
-          {video && (
-            <div className="mt-4 relative">
-              <video
-                src={
-                  video.startsWith("http")
-                    ? video
-                    : `${SERVER_URL || ""}${video}`
-                }
-                controls
-                className="w-full rounded-lg"
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <Label className="flex flex-col items-center justify-center border-2 border-dashed rounded-md aspect-square cursor-pointer hover:bg-muted">
+              <UploadCloud className="h-8 w-8 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {isUploading ? 'Subiendo...' : 'Añadir'}
+              </span>
+              <Input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileUpload}
+                disabled={isUploading}
               />
-              <button
-                type="button"
-                onClick={() => setValue("video", null)}
-                className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+            </Label>
+          </div>
+          {/* @ts-ignore */}
+          {errors.fotos && <p className="text-red-500 text-sm mt-1">{errors.fotos?.message || errors.fotos?.[0]?.value?.message}</p>}
+        </div>
+        
+        <div>
+          <Label>Video del Producto (Opcional)</Label>
+          <Controller
+            name="video"
+            control={control}
+            render={({ field }) => (
+              <>
+                <Input
+                  type="file"
+                  className="mt-2"
+                  accept="video/*"
+                  onChange={handleVideoUpload}
+                  disabled={isUploading}
+                />
+                {field.value && (
+                  <div className="mt-2">
+                    <p className="text-sm truncate">Video: {field.value}</p>
+                  </div>
+                )}
+              </>
+            )}
+          />
+          {errors.video && <p className="text-red-500 text-sm mt-1">{errors.video.message}</p>}
         </div>
       </CardContent>
     </Card>
   );
-};
+}
