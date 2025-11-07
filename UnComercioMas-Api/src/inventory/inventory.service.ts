@@ -1,12 +1,11 @@
-// src/inventory/inventory.service.ts
 import {
   Injectable,
   NotFoundException,
   ConflictException,
-  BadRequestException, // <-- Importado
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm'; // <-- Importado DataSource
+import { Repository, DataSource } from 'typeorm';
 import { BranchInventory } from './entities/inventario-sucursal.entity';
 import { AssignStockDto } from './DTO/assign-stock.dto';
 import { UpdateStockDto } from './DTO/update-stock.dto';
@@ -16,10 +15,11 @@ import { BranchesService } from '../branches/branches.service';
 import { ProductsService } from '../products/products.service';
 
 // --- NUEVAS IMPORTACIONES ---
-import { TransferStockDto } from './DTO/transfer-stock.dto'; // DTO de transferencia
-import { Transfer } from './entities/transferencia-inventario.entity.'; // Entidad de log
-import { ProductVariant } from '../products/entities/product-variant.entity'; // Entidad de variante
-import { Branch } from '../branches/entities/branch.entity'; // Entidad de sucursal
+import { TransferStockDto } from './DTO/transfer-stock.dto'; 
+// --- CORRECCIÓN DE TIPEO (quitamos el '.' extra) ---
+import { Transfer } from './entities/transferencia-inventario.entity'; 
+import { ProductVariant } from '../products/entities/product-variant.entity'; 
+import { Branch } from '../branches/entities/branch.entity'; 
 
 @Injectable()
 export class InventoryService {
@@ -28,18 +28,16 @@ export class InventoryService {
     private readonly inventoryRepository: Repository<BranchInventory>,
 
     // --- NUEVAS INYECCIONES ---
-    @InjectRepository(Transfer) // Repo para logs de transferencia
+    @InjectRepository(Transfer) 
     private readonly transferRepository: Repository<Transfer>,
-    @InjectRepository(ProductVariant) // Repo para validar variantes
+    @InjectRepository(ProductVariant) 
     private readonly variantRepository: Repository<ProductVariant>,
-    @InjectRepository(Branch) // Repo para validar sucursales
+    @InjectRepository(Branch) 
     private readonly branchRepository: Repository<Branch>,
 
-    // Inyectamos el DataSource para manejar la transacción
     private readonly dataSource: DataSource,
     // --- FIN NUEVAS INYECCIONES ---
 
-    // Inyectamos los servicios de sucursales y productos
     private readonly branchesService: BranchesService,
     private readonly productsService: ProductsService,
   ) {}
@@ -55,26 +53,21 @@ export class InventoryService {
       quantity,
     } = transferDto;
 
-    // Validación básica
     if (source_branch_id === destination_branch_id) {
       throw new BadRequestException(
         'La sucursal de origen y destino no pueden ser la misma.',
       );
     }
 
-    // Usamos el 'queryRunner' para controlar la transacción manualmente
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    // Iniciamos la transacción
     await queryRunner.startTransaction();
 
     try {
-      // Obtenemos repositorios que operarán DENTRO de la transacción
       const invRepo = queryRunner.manager.getRepository(BranchInventory);
       const transferRepo = queryRunner.manager.getRepository(Transfer);
 
       // 1. Validar y bloquear las filas de las entidades
-      // (usamos 'findOneBy' para validar que existan)
       const sourceBranch = await queryRunner.manager.findOneBy(Branch, {
         id: source_branch_id,
       });
@@ -92,12 +85,13 @@ export class InventoryService {
       }
 
       // 2. Obtener la entrada de inventario de ORIGEN
-      // Usamos 'findOne' para cargar la relación
       const sourceInventory = await invRepo.findOne({
         where: {
           sucursal: { id: source_branch_id },
           variante: { id: variante_id },
         },
+        // --- Mejora Opcional (Nivel Profesional) ---
+        // lock: { mode: 'pessimistic_write' }, 
       });
 
       // 3. Validar stock en origen
@@ -119,18 +113,18 @@ export class InventoryService {
           sucursal: { id: destination_branch_id },
           variante: { id: variante_id },
         },
+        // --- Mejora Opcional (Nivel Profesional) ---
+        // lock: { mode: 'pessimistic_write' }, 
       });
 
       // 6. Sumar stock al DESTINO
       if (destInventory) {
-        // Si ya existe la entrada, solo sumamos el stock
         destInventory.stock += quantity;
         await invRepo.save(destInventory);
       } else {
-        // Si no existe, creamos una nueva entrada de inventario
         const newDestInventory = invRepo.create({
-          sucursal: destBranch, // Usamos la entidad que ya validamos
-          variante: variante, // Usamos la entidad que ya validamos
+          sucursal: destBranch,
+          variante: variante, 
           stock: quantity,
         });
         await invRepo.save(newDestInventory);
@@ -145,17 +139,14 @@ export class InventoryService {
       });
       const savedLog = await transferRepo.save(transferLog);
 
-      // 8. Si todo salió bien, confirmar la transacción
+      // 8. Confirmar la transacción
       await queryRunner.commitTransaction();
-      return savedLog; // Devolvemos el log
+      return savedLog; 
       
     } catch (error) {
-      // 9. Si algo falló, revertir TODOS los cambios
       await queryRunner.rollbackTransaction();
-      // Re-lanzamos el error para que Nest lo maneje (ej. BadRequest, NotFound)
       throw error;
     } finally {
-      // 10. Siempre liberar el queryRunner
       await queryRunner.release();
     }
   }
@@ -166,21 +157,13 @@ export class InventoryService {
 
   /**
    * Asigna un stock inicial a una combinación de SKU (variante) y Sucursal.
-   * Crea una nueva entrada en la tabla 'inventario_sucursal'.
    */
   async assignStock(assignDto: AssignStockDto): Promise<BranchInventory> {
     const { sucursal_id, variante_id, stock } = assignDto;
 
-    // 1. Validar que la sucursal exista
-    // Usamos 'findOne' que ya lanza un 404 si no existe
     const sucursal = await this.branchesService.findOne(sucursal_id);
-
-    // 2. Validar que la variante (SKU) exista
-    // Usamos 'findOneVariant' que ya lanza un 404 si no existe
     const variante = await this.productsService.findOneVariant(variante_id);
 
-    // 3. (Opcional) Verificar si ya existe esta combinación
-    // Esto lo previene la BD con @Unique, pero es bueno validarlo aquí
     const existingEntry = await this.inventoryRepository.findOne({
       where: {
         sucursal: { id: sucursal_id },
@@ -194,7 +177,6 @@ export class InventoryService {
       );
     }
 
-    // 4. Crear y guardar la nueva entrada de inventario
     const newInventoryEntry = this.inventoryRepository.create({
       sucursal,
       variante,
@@ -211,7 +193,6 @@ export class InventoryService {
     inventoryId: string,
     updateDto: UpdateStockDto,
   ): Promise<BranchInventory> {
-    // 'preload' carga la entrada y la fusiona con los nuevos datos (el stock)
     const inventoryEntry = await this.inventoryRepository.preload({
       id: inventoryId,
       ...updateDto,
@@ -230,12 +211,11 @@ export class InventoryService {
    * Consulta el inventario completo de un SKU (variante) en todas las sucursales.
    */
   async findStockByVariant(varianteId: string): Promise<BranchInventory[]> {
-    // Validamos que el SKU exista
     await this.productsService.findOneVariant(varianteId);
 
     return this.inventoryRepository.find({
       where: { variante: { id: varianteId } },
-      relations: ['sucursal'], // Carga los datos de la sucursal (ej. nombre)
+      relations: ['sucursal'], 
     });
   }
 
@@ -243,17 +223,21 @@ export class InventoryService {
    * Consulta el inventario completo de una Sucursal.
    */
   async findStockByBranch(sucursalId: string): Promise<BranchInventory[]> {
-    // Validamos que la sucursal exista
     await this.branchesService.findOne(sucursalId);
 
     return this.inventoryRepository.find({
       where: { sucursal: { id: sucursalId } },
-      relations: ['variante', 'variante.producto'], // Carga el SKU y el producto padre
+      // --- ESTE ES EL BUG CRÍTICO CORREGIDO ---
+      relations: [
+        'variante', 
+        'variante.producto', 
+        'variante.producto.categoria' // <-- Añadimos la relación anidada
+      ], 
     });
   }
 
   /**
-   * Elimina una entrada de inventario (ej. si el producto se descontinúa en esa sucursal)
+   * Elimina una entrada de inventario
    */
   async removeStockEntry(inventoryId: string): Promise<void> {
     const result = await this.inventoryRepository.delete(inventoryId);

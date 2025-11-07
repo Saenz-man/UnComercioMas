@@ -7,7 +7,8 @@ import {
   IsNumber,
   IsUUID,
   IsOptional,
-  IsPositive,
+  IsPositive, // Mantenemos este para 'cantidad_minima'
+  Min,        // <-- ¡IMPORTANTE! Importamos Min
   IsArray,
   ValidateNested,
   IsObject,
@@ -23,13 +24,14 @@ class CreateVolumePriceDto {
     example: 10,
   })
   @IsPositive({ message: 'La cantidad mínima debe ser un número positivo.' })
-  cantidad_minima: number;
+  cantidad_minima: number; // <-- 'cantidad_minima' sí debe ser > 0
 
   @ApiProperty({
     description: 'Precio unitario para esta cantidad mínima',
     example: 80,
   })
-  @IsPositive({ message: 'El precio por volumen debe ser mayor a $0.0.' })
+  // --- CORRECCIÓN 1 ---
+  @Min(0, { message: 'El precio por volumen no puede ser negativo.' })
   precio: number;
 }
 
@@ -50,7 +52,8 @@ export class CreateProductVariantDto {
     example: 50,
   })
   @IsNumber({}, { message: 'El stock debe ser un número.' })
-  @IsPositive({ message: 'El stock debe ser mayor a 0.' })
+  // --- CORRECCIÓN 2 (La principal que reportaste) ---
+  @Min(0, { message: 'El stock no puede ser negativo (puede ser 0).' })
   stock: number;
 
   @ApiProperty({
@@ -81,6 +84,8 @@ export class CreateProductVariantDto {
     required: false,
   })
   @IsNumber({}, { message: 'El precio debe ser un número.' })
+  // --- CORRECCIÓN 3 (Proactiva) ---
+  @Min(0, { message: 'El precio de la variante no puede ser negativo.' })
   @IsOptional()
   precio?: number;
 }
@@ -98,6 +103,7 @@ export class CreateProductDto {
   @IsNotEmpty({ message: 'El nombre del producto es obligatorio.' })
   nombre: string;
 
+  // ... (modelo, descripcion, categoria_id no cambian) ...
   @ApiProperty({
     description: 'Modelo del producto (opcional)',
     example: 'Hombre',
@@ -124,7 +130,8 @@ export class CreateProductDto {
     { maxDecimalPlaces: 2 },
     { message: 'El precio debe tener máximo 2 decimales.' },
   )
-  @IsPositive({ message: 'El precio debe ser mayor a $0.0.' })
+  // --- CORRECCIÓN 4 ---
+  @Min(0, { message: 'El precio no puede ser negativo.' })
   precioPorPieza: number;
 
   @ApiProperty({
@@ -147,7 +154,7 @@ export class CreateProductDto {
   @IsOptional()
   preciosPorVolumen?: CreateVolumePriceDto[];
 
-  // --- Archivos multimedia ---
+  // ... (fotos, video, opciones no cambian) ...
   @ApiProperty({
     description: 'Fotos del producto principal',
     example: [
@@ -170,7 +177,6 @@ export class CreateProductDto {
   @IsOptional()
   video?: string;
 
-  // --- Opciones dinámicas ---
   @ApiProperty({
     description:
       'Opciones disponibles del producto. Las claves son dinámicas (por ejemplo: Talla, Color, Material...)',

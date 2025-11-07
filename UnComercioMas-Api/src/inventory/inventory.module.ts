@@ -6,7 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 // 1. Importa las 3 entidades que usaremos en el servicio
 import { BranchInventory } from './entities/inventario-sucursal.entity';
 // ✅ CORREGIDO: Quitado el punto extra al final
-import { Transfer } from './entities/transferencia-inventario.entity.'; 
+import { Transfer } from './entities/transferencia-inventario.entity'; 
 import { ProductVariant } from '../products/entities/product-variant.entity';
 import { Branch } from '../branches/entities/branch.entity';
 
