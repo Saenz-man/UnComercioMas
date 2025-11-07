@@ -230,106 +230,137 @@ async findAll(search?: string): Promise<Product[]> {
   }
 
   // =================================================================
-  // --- MÉTODO UPDATE (Categoría corregida) ---
-  // =================================================================
-  async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
-    console.log(`[ProductsService] DTO Recibido en update() para ID ${id}:`, JSON.stringify(updateProductDto, null, 2));
+// --- MÉTODO UPDATE (con corrección en actualización de opciones) ---
+// =================================================================
+async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
+  console.log(`[ProductsService] DTO Recibido en update() para ID ${id}:`, JSON.stringify(updateProductDto, null, 2));
 
-    const {
-      categoria_id,
-      variantes: variantesDto,
-      preciosPorVolumen: preciosDto,
-      fotos,
-      video,
-      ...productData
-    } = updateProductDto;
+  const {
+    categoria_id,
+    variantes: variantesDto,
+    preciosPorVolumen: preciosDto,
+    fotos,
+    video,
+    ...productData
+  } = updateProductDto;
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+  const queryRunner = this.dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
 
-    try {
-      const producto = await queryRunner.manager.findOne(Product, {
-        where: { id },
-        relations: ['variantes', 'preciosPorVolumen', 'categoria'],
-      });
+  try {
+    const producto = await queryRunner.manager.findOne(Product, {
+      where: { id },
+      relations: ['variantes', 'preciosPorVolumen', 'categoria'],
+    });
 
-      if (!producto) {
-        throw new NotFoundException(`Producto con ID "${id}" no encontrado.`);
+    if (!producto) {
+      throw new NotFoundException(`Producto con ID "${id}" no encontrado.`);
+    }
+
+    queryRunner.manager.merge(Product, producto, productData, { fotos, video });
+
+    // --- Actualización de categoría ---
+    if (categoria_id && producto.categoria?.id !== categoria_id) {
+      const categoria = await this.categoriesService.findOne(categoria_id);
+      if (!categoria) {
+        throw new BadRequestException(`Categoría con ID ${categoria_id} no existe.`);
       }
+      producto.categoria = categoria;
+    }
 
-      queryRunner.manager.merge(Product, producto, productData, { fotos, video });
+    // --- Lógica de Variantes ---
+    if (variantesDto !== undefined) {
+      console.log('[ProductsService] Actualizando variantes...');
+      const existingVariantsMap = new Map(producto.variantes.map(v => [v.sku, v]));
+      const processedVariantIds = new Set<string>();
+      const updatedOrNewVariants: ProductVariant[] = [];
 
-      // Actualiza la categoría usando el servicio
-      if (categoria_id && producto.categoria?.id !== categoria_id) {
-        console.log(`[ProductsService] Actualizando categoría a ID: ${categoria_id}`);
-        const categoria = await this.categoriesService.findOne(categoria_id);
-        if (!categoria) {
-          throw new BadRequestException(`Categoría con ID ${categoria_id} no existe.`);
-        }
-        producto.categoria = categoria;
-      }
+      for (const variantDto of variantesDto) {
+        const { opciones, foto, stock, ...rest } = variantDto;
+        const existingVariant = existingVariantsMap.get(variantDto.sku);
 
-      // --- Lógica de Variantes (como estaba antes, con mapeo) ---
-      if (variantesDto !== undefined) {
-        console.log('[ProductsService] Actualizando variantes...');
-        const existingVariantsMap = new Map(producto.variantes.map(v => [v.sku, v]));
-        const processedVariantIds = new Set<string>();
-        const updatedOrNewVariants: ProductVariant[] = [];
+        if (existingVariant) {
+          console.log(`[ProductsService] Variante encontrada, actualizando SKU: ${existingVariant.sku}`);
 
-        for (const variantDto of variantesDto) {
-          const { opciones, foto, stock, ...rest } = variantDto;
-          const existingVariant = existingVariantsMap.get(variantDto.sku);
+          // Actualización explícita del JSON `atributos`
+          existingVariant.atributos = opciones ?? existingVariant.atributos;
+          existingVariant.foto_variante = foto ?? existingVariant.foto_variante;
+          existingVariant.stock = stock ?? existingVariant.stock;
 
-          if (existingVariant) {
-            console.log(`[ProductsService] Variante encontrada, actualizando SKU: ${existingVariant.sku}`);
-            queryRunner.manager.merge(ProductVariant, existingVariant, { ...rest, atributos: opciones, foto_variante: foto });
-            const updatedVariant = await queryRunner.manager.save(ProductVariant, existingVariant);
-            updatedOrNewVariants.push(updatedVariant);
-            processedVariantIds.add(existingVariant.id);
-          } else {
-            console.log(`[ProductsService] Variante nueva, creando SKU: ${variantDto.sku}`);
-            const newVariantEntity = queryRunner.manager.create(ProductVariant, { ...rest, stock: stock || 0, atributos: opciones, foto_variante: foto, producto: { id: producto.id } });
-            const savedNewVariant = await queryRunner.manager.save(ProductVariant, newVariantEntity);
-            updatedOrNewVariants.push(savedNewVariant);
-            processedVariantIds.add(savedNewVariant.id);
-             if (stock && stock > 0) { /* ... asignación inventario ... */ }
+          // Merge de demás campos simples
+          Object.assign(existingVariant, rest);
+
+          // Guardar siempre con save(), no merge (para que se detecten cambios en JSON)
+          const updatedVariant = await queryRunner.manager.save(ProductVariant, existingVariant);
+          updatedOrNewVariants.push(updatedVariant);
+          processedVariantIds.add(existingVariant.id);
+        } else {
+          console.log(`[ProductsService] Variante nueva, creando SKU: ${variantDto.sku}`);
+          const newVariantEntity = queryRunner.manager.create(ProductVariant, {
+            ...rest,
+            stock: stock || 0,
+            atributos: opciones,
+            foto_variante: foto,
+            producto: { id: producto.id },
+          });
+          const savedNewVariant = await queryRunner.manager.save(ProductVariant, newVariantEntity);
+          updatedOrNewVariants.push(savedNewVariant);
+          processedVariantIds.add(savedNewVariant.id);
+
+          // Asignación de inventario si aplica
+          if (stock && stock > 0) {
+            try {
+              const matriz = await this.branchesService.findMatriz();
+              await this.inventoryService.assignStock({
+                sucursal_id: matriz.id,
+                variante_id: savedNewVariant.id,
+                stock: stock,
+              });
+            } catch (err) {
+              console.warn(`[ProductsService] Falló asignación de inventario para ${variantDto.sku}:`, err.message);
+            }
           }
         }
-
-        const variantsToDelete = producto.variantes.filter(v => !processedVariantIds.has(v.id));
-        if (variantsToDelete.length > 0) {
-            console.log(`[ProductsService] Eliminando ${variantsToDelete.length} variantes antiguas.`);
-            // AÑADIR LÓGICA PARA BORRAR INVENTARIO ASOCIADO ANTES DE BORRARLAS
-            await queryRunner.manager.remove(variantsToDelete);
-        }
-        producto.variantes = updatedOrNewVariants;
       }
 
-      // --- Lógica Precios Volumen (como estaba antes) ---
-      if (preciosDto) {
-        await queryRunner.manager.delete(VolumePrice, { producto: { id } });
-        const newPrecios = preciosDto.map((precioDto) => queryRunner.manager.create(VolumePrice, { ...precioDto, producto: { id: producto.id } }));
-        await queryRunner.manager.save(VolumePrice, newPrecios);
-        producto.preciosPorVolumen = newPrecios;
+      // --- Eliminación de variantes que ya no están ---
+      const variantsToDelete = producto.variantes.filter(v => !processedVariantIds.has(v.id));
+      if (variantsToDelete.length > 0) {
+        console.log(`[ProductsService] Eliminando ${variantsToDelete.length} variantes antiguas.`);
+        await queryRunner.manager.remove(variantsToDelete);
       }
 
-      await queryRunner.manager.save(Product, producto);
-      await queryRunner.commitTransaction();
-
-      console.log(`[ProductsService] Producto ${id} actualizado exitosamente.`);
-      return this.findOne(producto.id);
-
-    } catch (error: any) {
-      await queryRunner.rollbackTransaction();
-      console.error('[ProductsService] Error detallado al ACTUALIZAR producto:', error);
-      if (error instanceof NotFoundException || error instanceof BadRequestException) { throw error; }
-      if (error.code === '23505') { /* ... manejo duplicados ... */ }
-      throw new InternalServerErrorException(`Error al actualizar el producto: ${error.message}`);
-    } finally {
-      await queryRunner.release();
+      producto.variantes = updatedOrNewVariants;
     }
+
+    // --- Actualización de precios por volumen ---
+    if (preciosDto) {
+      await queryRunner.manager.delete(VolumePrice, { producto: { id } });
+      const newPrecios = preciosDto.map((precioDto) =>
+        queryRunner.manager.create(VolumePrice, { ...precioDto, producto: { id: producto.id } }),
+      );
+      await queryRunner.manager.save(VolumePrice, newPrecios);
+      producto.preciosPorVolumen = newPrecios;
+    }
+
+    await queryRunner.manager.save(Product, producto);
+    await queryRunner.commitTransaction();
+
+    console.log(`[ProductsService] Producto ${id} actualizado exitosamente.`);
+    return this.findOne(producto.id);
+  } catch (error: any) {
+    await queryRunner.rollbackTransaction();
+    console.error('[ProductsService] Error detallado al ACTUALIZAR producto:', error);
+    if (error instanceof NotFoundException || error instanceof BadRequestException) {
+      throw error;
+    }
+    throw new InternalServerErrorException(`Error al actualizar el producto: ${error.message}`);
+  } finally {
+    await queryRunner.release();
   }
+}
+
 
   // ====================================================
   // --- MÉTODO REMOVE (Individual) ---
