@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, cpSync } from 'fs';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -30,14 +30,19 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
-  // --- ✅ Path dinámico compatible con build ---
-  const swaggerDistPath =
-    existsSync(join(__dirname, 'swagger-ui-dist')) // si lo copiaste en el build
-      ? join(__dirname, 'swagger-ui-dist')
-      : join(process.cwd(), 'node_modules', 'swagger-ui-dist'); // si corre desde node_modules
+  // --- ⚙️ Copiar automáticamente swagger-ui-dist al build (solo si no existe) ---
+  const distSwaggerPath = join(__dirname, 'swagger-ui-dist');
+  const nodeSwaggerPath = join(process.cwd(), 'node_modules', 'swagger-ui-dist');
 
-  app.useStaticAssets(swaggerDistPath, { prefix: '/swagger-ui-dist/' });
+  if (!existsSync(distSwaggerPath) && existsSync(nodeSwaggerPath)) {
+    console.log('📦 Copiando assets de Swagger UI al build...');
+    cpSync(nodeSwaggerPath, distSwaggerPath, { recursive: true });
+  }
 
+  // --- Servir los assets estáticos ---
+  app.useStaticAssets(distSwaggerPath, { prefix: '/swagger-ui-dist/' });
+
+  // --- Configuración de Swagger ---
   SwaggerModule.setup('api/docs', app, document, {
     customJs: [
       '/swagger-ui-dist/swagger-ui-bundle.js',
@@ -51,7 +56,6 @@ async function bootstrap() {
 
   const port = configService.get<number>('PORT') || 3000;
   await app.listen(port);
-
 
   console.log(`🚀 API corriendo en puerto ${port}`);
   console.log(`🌐 Swagger disponible en: /api/docs`);
