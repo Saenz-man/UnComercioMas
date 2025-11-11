@@ -1,12 +1,10 @@
+import { join } from 'path';
+import { existsSync, cpSync } from 'fs';
 import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
-
-import { AppModule } from './app.module';
-// Ya no necesitamos 'existsSync' ni 'cpSync'
-// Ya no necesitamos la importación de 'fs'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -32,31 +30,37 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
-  // --- SOLUCIÓN: Usar CDN para assets estáticos (Funciona en todos los entornos) ---
-  
-  // 🚫 ELIMINAMOS TODO EL CÓDIGO DE COPIADO DE ARCHIVOS LOCALES 🚫
-  
-  // --- Configuración de Swagger ---
+  // --- Copiar los archivos de swagger-ui-dist si no están ---
+  const distSwaggerPath = join(__dirname, 'swagger-ui-dist');
+  const nodeSwaggerPath = join(process.cwd(), 'node_modules', 'swagger-ui-dist');
+
+  if (!existsSync(distSwaggerPath) && existsSync(nodeSwaggerPath)) {
+    console.log('📦 Copiando assets de Swagger UI al build...');
+    cpSync(nodeSwaggerPath, distSwaggerPath, { recursive: true });
+  }
+
+  // --- Servir los assets directamente bajo /api/docs ---
+  app.useStaticAssets(distSwaggerPath, {
+    prefix: '/api/docs/', // 👈 AHORA Swagger busca directamente aquí
+  });
+
+  // --- Configurar Swagger UI ---
   SwaggerModule.setup('api/docs', app, document, {
-    // 💡 APUNTAMOS DIRECTAMENTE AL CDN DE SWAGGER 💡
     customJs: [
-      'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.11.0/swagger-ui-bundle.js',
-      'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js',
+      '/api/docs/swagger-ui-bundle.js',
+      '/api/docs/swagger-ui-standalone-preset.js',
     ],
-    customCssUrl: 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.11.0/swagger-ui.css',
+    customCssUrl: '/api/docs/swagger-ui.css',
     swaggerOptions: {
       persistAuthorization: true,
     },
   });
-  // ---------------------------------------------------------------------------------
 
   const port = configService.get<number>('PORT') || 3000;
   await app.listen(port);
 
-  // El resto de la configuración de logs es correcta.
   console.log(`🚀 API corriendo en puerto ${port}`);
   console.log(`🌐 Swagger disponible en: /api/docs`);
-  console.log(`🗄️ Conectando a BD: ${process.env.DB_HOST}:${process.env.DB_PORT}`);
   console.log(`🧩 Entorno actual: ${env.toUpperCase()}`);
 }
 bootstrap();
