@@ -25,7 +25,7 @@ async function bootstrap() {
   // Configuración de Swagger (Ya la tenías)
   // ----------------------------------------------------
   const config = new DocumentBuilder()
-    .setTitle('UnComercioMas API Central') 
+    .setTitle('UnComercioMas API Central Servicio Web') 
     .setDescription('Documentación de la API Headless para E-Commerce y gestión de operaciones.')
     .setVersion('1.0') 
     .addBearerAuth() 
