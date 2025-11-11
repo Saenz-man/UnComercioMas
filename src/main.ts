@@ -1,63 +1,45 @@
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common'; 
-import { NestExpressApplication } from '@nestjs/platform-express'; // <-- 1. IMPORTAR
-import { join } from 'path'; // <-- 2. IMPORTAR
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  // --- 3. CAMBIAR TIPO DE 'app' ---
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
-  // --- 1. AÑADIR CONFIGURACIÓN DE CORS ---
-  app.enableCors({
-    origin: 'http://localhost:3001', // <-- Puerto donde corre tu Next.js
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-  });
-  // ------------------------------------
+  // --- Determinar entorno ---
+  const env = configService.get<string>('NODE_ENV') || 'development';
 
-  // --- (Opcional) PREFIJO GLOBAL ---
-  app.setGlobalPrefix('api/v1');
-  // ------------------------------------
+  // --- Configurar título y descripción dinámicos ---
+  const isProd = env === 'production';
 
-  // ----------------------------------------------------
-  // Configuración de Swagger (Ya la tenías)
-  // ----------------------------------------------------
-  const config = new DocumentBuilder()
-    .setTitle('UnComercioMas API Central Servicio Web') 
-    .setDescription('Documentación de la API Headless para E-Commerce y gestión de operaciones.')
-    .setVersion('1.0') 
-    .addBearerAuth() 
+  const swaggerTitle = isProd
+    ? 'UnComercioMas API Central Servicio Web'
+    : 'UnComercioMas API Local - Entorno de Desarrollo';
+
+  const swaggerDescription = isProd
+    ? 'Documentación de la API Headless para E-Commerce y gestión de operaciones.'
+    : 'Documentación local para pruebas y desarrollo de UnComercioMas.';
+
+  // --- Configuración Swagger ---
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle(swaggerTitle)
+    .setDescription(swaggerDescription)
+    .setVersion('1.0')
+    .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document); 
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
 
-  // ----------------------------------------------------
-  // Configuración de Validación (Pipes) (Ya la tenías)
-  // ----------------------------------------------------
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true, 
-      forbidNonWhitelisted: true, 
-      transform: true, 
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
-  // ----------------------------------------------------
+  // --- Iniciar servidor ---
+  const port = configService.get<number>('PORT') || 3000;
+  await app.listen(port);
 
-  // --- 4. AÑADIR SERVIDOR DE ESTÁTICOS ---
-  // Esto hace que la carpeta './uploads' sea accesible públicamente
-  // en la ruta 'http://localhost:3000/uploads/...'
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-    prefix: '/uploads/',
-  });
-  // ----------------------------------------
-  
-  await app.listen(process.env.PORT || 3000); 
-  console.log(`Aplicación ejecutándose en: ${await app.getUrl()}`);
+  console.log('🚀 API iniciado correctamente');
+  console.log(`🌐 API corriendo en: http://localhost:${port}/api/docs`);
+  console.log(`🗄️ Conectando a BD: ${process.env.DB_HOST}:${process.env.DB_PORT}`);
+  console.log(`🧩 Entorno actual: ${env.toUpperCase()}`);
+
 }
 bootstrap();

@@ -1,4 +1,6 @@
-# Dependencias
+# ----------------------------------------------------------------------
+# 1. DEPENDENCIAS Y BUILD
+# ----------------------------------------------------------------------
 /node_modules
 
 # Archivos de la build de Node/NestJS
@@ -6,23 +8,36 @@
 /build
 /coverage
 
+# ----------------------------------------------------------------------
+# 2. CACHÉ, LOGS Y METADATOS
+# ----------------------------------------------------------------------
 # Archivos de caché y logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .nyc_output/
 .DS_Store
-
-# Datos sensibles (Credenciales, claves, etc.)
-.env
-.env.*
 *.log
 
-# Directorio de subidas (uploads)
+# ----------------------------------------------------------------------
+# 3. DATOS SENSIBLES Y AMBIENTES LOCALES
+# ----------------------------------------------------------------------
+# Excluye la configuración de desarrollo y local (¡CRUCIAL!)
+.env.development
+.env.local
+.env.*.local
+.env # Si usas solo .env sin extensión
+
+# ----------------------------------------------------------------------
+# 4. ARCHIVOS DE SUBIDAS (UPLOADS)
+# ----------------------------------------------------------------------
+# Directorio de subidas (archivos subidos por los usuarios)
 /uploads
 
-# Archivos de configuración y de IDE (Opcional, pero recomendado)
-# Esto evitará subir configuraciones específicas de tu editor/IDE
+# ----------------------------------------------------------------------
+# 5. CONFIGURACIÓN DE IDE
+# ----------------------------------------------------------------------
+# Archivos de configuración y de IDE
 .vscode/
 .idea/
 *.sublime-workspace

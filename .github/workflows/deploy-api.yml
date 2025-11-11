@@ -1,0 +1,55 @@
+name: 🚀 Despliegue de API a VPS (Producción)
+
+on:
+  push:
+    branches:
+      - Mark-ApiProduccion
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+      VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+
+    steps:
+      - name: 🧩 Checkout del código
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configurar Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📦 Instalar dependencias
+        run: npm ci
+
+      - name: 🏗️ Compilar la API
+        run: npm run build
+
+      - name: 📤 Desplegar archivos a VPS (sin node_modules)
+        uses: easingthemes/ssh-deploy@main
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.VPS_HOST }}
+          REMOTE_USER: ${{ secrets.VPS_USERNAME }}
+          SOURCE: "./dist ./package.json ./package-lock.json ./.env.production"
+          TARGET: "/var/www/uncomerciomas-api/"
+          ARGS: "-rltgoDzv --delete"
+
+      - name: 🚀 Ejecutar comandos en el VPS (instalar y reiniciar PM2)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/uncomerciomas-api/
+            echo "Instalando dependencias en servidor..."
+            npm ci --omit=dev
+            echo "Reiniciando API con PM2..."
+            pm2 reload uncomerciomas-api || pm2 start dist/main.js --name "uncomerciomas-api"
+            pm2 save
+            echo "✅ Despliegue completado con éxito."
