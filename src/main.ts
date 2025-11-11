@@ -9,11 +9,9 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
 
-  // --- Determinar entorno ---
   const env = configService.get<string>('NODE_ENV') || 'development';
   const isProd = env === 'production';
 
-  // --- Configuración Swagger dinámica ---
   const swaggerTitle = isProd
     ? 'UnComercioMas API Central Servicio Web'
     : 'UnComercioMas API Local - Entorno de Desarrollo';
@@ -31,23 +29,28 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
-  // --- ⚙️ SERVIR ARCHIVOS ESTÁTICOS DE SWAGGER ---
-  // Esto evita los errores 404 de swagger-ui.css y swagger-ui-bundle.js
-  app.useStaticAssets(join(__dirname, '..', 'node_modules', 'swagger-ui-dist'));
+  // --- ⚙️ Servir archivos estáticos Swagger desde node_modules ---
+  const swaggerDistPath = join(__dirname, '..', 'node_modules', 'swagger-ui-dist');
+  app.useStaticAssets(swaggerDistPath, {
+    prefix: '/swagger-ui-dist/', // 👈 Importante para que Swagger cargue correctamente
+  });
 
   SwaggerModule.setup('api/docs', app, document, {
+    customJs: [
+      '/swagger-ui-dist/swagger-ui-bundle.js',
+      '/swagger-ui-dist/swagger-ui-standalone-preset.js',
+    ],
+    customCssUrl: '/swagger-ui-dist/swagger-ui.css',
     swaggerOptions: {
       persistAuthorization: true,
     },
-    customCss: '.swagger-ui .topbar { display: none }',
   });
 
-  // --- Iniciar servidor ---
   const port = configService.get<number>('PORT') || 3000;
   await app.listen(port);
 
-  console.log('🚀 API iniciado correctamente');
-  console.log(`🌐 API corriendo en: http://localhost:${port}/api/docs`);
+  console.log(`🚀 API corriendo en puerto ${port}`);
+  console.log(`🌐 Swagger disponible en: /api/docs`);
   console.log(`🗄️ Conectando a BD: ${process.env.DB_HOST}:${process.env.DB_PORT}`);
   console.log(`🧩 Entorno actual: ${env.toUpperCase()}`);
 }
