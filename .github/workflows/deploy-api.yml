@@ -48,7 +48,7 @@ jobs:
           script: |
             cd /var/www/uncomerciomas-api/
             echo "Instalando dependencias en servidor..."
-            npm ci --omit=dev
+            npm ci 
             echo "Reiniciando API con PM2..."
             pm2 reload uncomerciomas-api || pm2 start dist/main.js --name "uncomerciomas-api"
             pm2 save
