@@ -3,14 +3,15 @@ name: 🚀 Despliegue de API a VPS (Producción)
 on:
   push:
     branches:
-      - Mark-ApiProduccion
+      - Mark-ApiProduccion 
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    # Definir las variables secretas (USANDO VPN_HOST)
     env:
-      VPS_HOST: ${{ secrets.VPN_HOST }}
+      VPS_HOST: ${{ secrets.VPN_HOST }} # <-- ¡CORREGIDO AQUÍ! (Ahora usa VPN_HOST)
       VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
       VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
 
@@ -23,33 +24,33 @@ jobs:
         with:
           node-version: '20'
 
-      - name: 📦 Instalar dependencias
-        run: npm ci
+      - name: 📦 Instalar dependencias (incluye desarrollo para build)
+        run: npm install
 
       - name: 🏗️ Compilar la API
         run: npm run build
 
-      - name: 📤 Desplegar archivos a VPS (sin node_modules)
+      # --- FASE DE DEPLOY AL VPS ---
+
+      - name: 📤 Desplegar archivos a VPS con rsync
         uses: easingthemes/ssh-deploy@main
         with:
           SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-          REMOTE_HOST: ${{ secrets.VPN_HOST }}
+          REMOTE_HOST: ${{ secrets.VPN_HOST }} # <-- CORREGIDO
           REMOTE_USER: ${{ secrets.VPS_USERNAME }}
           SOURCE: "./dist ./package.json ./package-lock.json ./.env.production"
           TARGET: "/var/www/uncomerciomas-api/"
-          ARGS: "-rltgoDzv --delete"
+          ARGS: "-rltgoDzv"
 
-      - name: 🚀 Ejecutar comandos en el VPS (instalar y reiniciar PM2)
+      - name: 🚀 Ejecutar comandos en el VPS (Reiniciar PM2)
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPN_HOST }}
+          host: ${{ secrets.VPN_HOST }} # <-- CORREGIDO
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/uncomerciomas-api/
-            echo "Instalando dependencias en servidor..."
-            npm ci 
             echo "Reiniciando API con PM2..."
-            pm2 reload uncomerciomas-api || pm2 start dist/main.js --name "uncomerciomas-api"
+            pm2 reload uc+-api || pm2 start dist/main.js --name "uc+-api"
             pm2 save
             echo "✅ Despliegue completado con éxito."
