@@ -38,12 +38,12 @@ jobs:
           script: |
             cd /var/www/uncomerciomas-api/
             echo "Instalando dependencias de producción en servidor..."
-            # Instalamos las dependencias de producción en el VPS
-            npm install --only=production
+            # 1. USAR 'npm ci' para una instalación limpia y rápida en CI/CD
+            npm ci --only=production
             
             echo "Compilando el código fuente..."
-            # Compilamos el código directamente en el VPS
-            npm run build
+            # 2. USAR 'npx nest build' para solucionar el "nest: not found"
+            npx nest build
             
             echo "Reiniciando API con PM2..."
             pm2 reload uc+-api || pm2 start dist/main.js --name "uc+-api"
