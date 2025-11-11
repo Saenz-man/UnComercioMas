@@ -1,9 +1,10 @@
+import { join } from 'path';
+import { existsSync } from 'fs';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -29,11 +30,13 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
 
-  // --- ⚙️ Servir archivos estáticos Swagger desde node_modules ---
-  const swaggerDistPath = join(__dirname, '..', 'node_modules', 'swagger-ui-dist');
-  app.useStaticAssets(swaggerDistPath, {
-    prefix: '/swagger-ui-dist/', // 👈 Importante para que Swagger cargue correctamente
-  });
+  // --- ✅ Path dinámico compatible con build ---
+  const swaggerDistPath =
+    existsSync(join(__dirname, 'swagger-ui-dist')) // si lo copiaste en el build
+      ? join(__dirname, 'swagger-ui-dist')
+      : join(process.cwd(), 'node_modules', 'swagger-ui-dist'); // si corre desde node_modules
+
+  app.useStaticAssets(swaggerDistPath, { prefix: '/swagger-ui-dist/' });
 
   SwaggerModule.setup('api/docs', app, document, {
     customJs: [
@@ -48,6 +51,7 @@ async function bootstrap() {
 
   const port = configService.get<number>('PORT') || 3000;
   await app.listen(port);
+
 
   console.log(`🚀 API corriendo en puerto ${port}`);
   console.log(`🌐 Swagger disponible en: /api/docs`);
