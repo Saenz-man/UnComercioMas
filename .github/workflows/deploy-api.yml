@@ -3,15 +3,14 @@ name: 🚀 Despliegue de API a VPS (Producción)
 on:
   push:
     branches:
-      - Mark-ApiProduccion 
+      - Mark-ApiProduccion
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    # Definir las variables secretas (USANDO VPN_HOST)
     env:
-      VPS_HOST: ${{ secrets.VPN_HOST }} # <-- ¡CORREGIDO AQUÍ! (Ahora usa VPN_HOST)
+      VPS_HOST: ${{ secrets.VPN_HOST }}
       VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
       VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
 
@@ -19,38 +18,34 @@ jobs:
       - name: 🧩 Checkout del código
         uses: actions/checkout@v4
 
-      - name: ⚙️ Configurar Node.js 20.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: 📦 Instalar dependencias (incluye desarrollo para build)
-        run: npm install
-
-      - name: 🏗️ Compilar la API
-        run: npm run build
-
-      # --- FASE DE DEPLOY AL VPS ---
-
-      - name: 📤 Desplegar archivos a VPS con rsync
+      - name: 📤 Desplegar todo el código fuente (para Build en VPS)
         uses: easingthemes/ssh-deploy@main
         with:
           SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-          REMOTE_HOST: ${{ secrets.VPN_HOST }} # <-- CORREGIDO
+          REMOTE_HOST: ${{ secrets.VPN_HOST }}
           REMOTE_USER: ${{ secrets.VPS_USERNAME }}
-          SOURCE: "./dist ./package.json ./package-lock.json ./.env.production"
+          # Subimos TODO (código fuente y .env)
+          SOURCE: "./src ./.env.production ./package.json ./package-lock.json" 
           TARGET: "/var/www/uncomerciomas-api/"
-          ARGS: "-rltgoDzv"
+          ARGS: "-rltgoDzv --delete" # --delete es importante para limpiar
 
-      - name: 🚀 Ejecutar comandos en el VPS (Reiniciar PM2)
+      - name: 🚀 Ejecutar comandos en el VPS (Build, Instalar, Reiniciar)
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPN_HOST }} # <-- CORREGIDO
+          host: ${{ secrets.VPN_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/uncomerciomas-api/
+            echo "Instalando dependencias de producción en servidor..."
+            # Instalamos las dependencias de producción en el VPS
+            npm install --only=production
+            
+            echo "Compilando el código fuente..."
+            # Compilamos el código directamente en el VPS
+            npm run build
+            
             echo "Reiniciando API con PM2..."
             pm2 reload uc+-api || pm2 start dist/main.js --name "uc+-api"
             pm2 save
-            echo "✅ Despliegue completado con éxito."
+            echo "✅ Despliegue y Build en Servidor completado con éxito."
