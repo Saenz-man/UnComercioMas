@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      VPS_HOST: ${{ secrets.VPN_HOST }} # Usando tu secreto VPN_HOST
+      VPS_HOST: ${{ secrets.VPN_HOST }}
       VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
       VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
 
@@ -18,36 +18,22 @@ jobs:
       - name: 🧩 Checkout del código
         uses: actions/checkout@v4
 
-      - name: ⚙️ Configurar Node.js 20.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      # --- FASE DE DEPLOY AL VPS (Transferir Código Fuente) ---
 
-      # --- FASE DE BUILD EN GITHUB (Rápida y Limpia) ---
-      
-      - name: 📦 Instalar TODAS las dependencias (para Build)
-        run: npm install
-
-      - name: 🏗️ Compilar la API
-        # Esto crea la carpeta 'dist' con el código JavaScript final
-        run: npm run build
-
-      # --- FASE DE DEPLOY AL VPS (Transferir Build) ---
-
-      - name: 📤 Desplegar archivos (SOLO lo necesario)
+      - name: 📤 Desplegar código fuente y archivos de control
         uses: easingthemes/ssh-deploy@main
         with:
           SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           REMOTE_HOST: ${{ secrets.VPN_HOST }}
           REMOTE_USER: ${{ secrets.VPS_USERNAME }}
-          # 🚨 TRANSFERIMOS SÓLO: Código compilado, dependencias de producción, y credenciales.
-          SOURCE: "./dist ./node_modules ./package.json ./package-lock.json ./.env.production" 
+          # 🚨 Subimos el código fuente, package.json y .env.production
+          SOURCE: "./src ./package.json ./package-lock.json ./.env.production ./tsconfig.json" 
           TARGET: "/var/www/uncomerciomas-api/"
-          ARGS: "-rltgoDzv --delete" # --delete es CRÍTICO para asegurar la limpieza
+          ARGS: "-rltgoDzv --delete" 
           
-      # --- PASO CRÍTICO: REINICIO DE PM2 (Con ruta de PM2) ---
+      # --- PASO CRÍTICO: BUILD, INSTALACIÓN Y REINICIO EN EL VPS ---
 
-      - name: 🚀 Ejecutar comandos en el VPS (Reiniciar PM2)
+      - name: 🚀 Ejecutar comandos de Build y Reinicio en el VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPN_HOST }}
@@ -56,12 +42,20 @@ jobs:
           script: |
             cd /var/www/uncomerciomas-api/
             
-            # 1. Forzar la carga de NVM/Node Path
+            # 1. Forzar la carga de NVM/Node Path (NECESARIO para encontrar PM2)
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
+            echo "Instalando dependencias de producción y compilando..."
+            
+            # 2. Instalación de dependencias de producción (en el VPS)
+            npm install --only=production
+            
+            # 3. Compilación (npx es necesario en el VPS para encontrar Nest CLI)
+            npx nest build
+            
             echo "Reiniciando API con PM2..."
-            # 2. Ejecutar PM2 (ahora en el PATH)
+            # 4. Reinicio de PM2
             pm2 reload uc+-api || pm2 start dist/main.js --name "uc+-api"
             pm2 save
-            echo "✅ Despliegue completado con éxito. ¡Revisar Swagger!"
+            echo "✅ Despliegue completado con éxito."

@@ -24,10 +24,12 @@ import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
-    // 1️⃣ Configuración global de variables de entorno
+    // 1️⃣ Configuración global de variables de entorno (¡Ajuste para Robustez!)
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [`.env.${process.env.NODE_ENV}`],
+      // 💡 Cargamos el archivo específico del entorno Y un archivo genérico.
+      // Esto asegura que la variable NODE_ENV sea la guía, pero con fallback.
+      envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'], 
     }),
 
     // 2️⃣ Configuración de TypeORM usando async para asegurar strings
@@ -42,6 +44,7 @@ import { UploadsModule } from './uploads/uploads.module';
         password: config.get<string>('DB_PASSWORD'), // 🔹 fuerza string
         database: config.get<string>('DB_NAME'),
         autoLoadEntities: true,
+        // Sincronizar (crear/actualizar tablas) SOLO en desarrollo
         synchronize: config.get<string>('NODE_ENV') === 'development',
       }),
     }),
