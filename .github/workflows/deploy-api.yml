@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      VPS_HOST: ${{ secrets.VPN_HOST }} # Usando tu secreto VPN_HOST
+      VPS_HOST: ${{ secrets.VPN_HOST }}
       VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
       VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
 
@@ -23,30 +23,27 @@ jobs:
         with:
           node-version: '20'
 
-      # --- FASE DE BUILD EN GITHUB (Necesita acceso a devDependencies) ---
-      
-      - name: 📦 Instalar TODAS las dependencias (para Build)
-        # Necesitamos todas las dependencias para que el compilador de NestJS funcione.
+      # --- FASE DE BUILD EN GITHUB ---
+
+      - name: 📦 Instalar dependencias (incluyendo devDependencies)
         run: npm install
 
-      - name: 🏗️ Compilar la API
-        # Esto crea la carpeta 'dist' con el código JavaScript final
+      - name: 🏗️ Compilar la API NestJS
         run: npm run build
 
-      # --- FASE DE DEPLOY AL VPS (Transferir Build) ---
+      # --- FASE DE DEPLOY AL VPS ---
 
-      - name: 📤 Desplegar archivos (SOLO lo necesario)
+      - name: 📤 Desplegar archivos necesarios al servidor
         uses: easingthemes/ssh-deploy@main
         with:
           SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           REMOTE_HOST: ${{ secrets.VPN_HOST }}
           REMOTE_USER: ${{ secrets.VPS_USERNAME }}
-          # 🚨 TRANSFERIMOS SÓLO: Código compilado, dependencias de producción, y credenciales.
-          SOURCE: "./dist ./node_modules ./package.json ./package-lock.json ./.env.production" 
+          SOURCE: "./dist ./node_modules ./package.json ./package-lock.json ./.env.production"
           TARGET: "/var/www/uncomerciomas-api/"
           ARGS: "-rltgoDzv --delete"
 
-      - name: 🚀 Ejecutar comandos en el VPS (Reiniciar PM2)
+      - name: 🚀 Reiniciar API con PM2 (modo producción)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPN_HOST }}
@@ -54,15 +51,25 @@ jobs:
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/uncomerciomas-api/
-            
-            # --- REINICIO CRÍTICO (Usando la ruta absoluta) ---
-            # 💡 La ruta de PM2 que encontraste: /root/.nvm/versions/node/v24.11.0/bin/pm2
-            # Ajustamos la versión de Node por si cambia
+
+            echo "🔍 Buscando binario de PM2..."
             PM2_BIN=$(find /root/.nvm/versions/node/ -name pm2 -type f -print -quit)
-            
-            echo "Reiniciando API con PM2..."
-            
-            # Ejecutamos el binario PM2 usando la ruta encontrada
-            $PM2_BIN reload uc+-api || $PM2_BIN start dist/main.js --name "uc+-api"
+
+            echo "✅ PM2 encontrado en: $PM2_BIN"
+            echo "🚀 Reiniciando API en modo producción..."
+
+            # 🔥 Forzar entorno de producción
+            NODE_ENV=production $PM2_BIN delete "uc+-api" || true
+            NODE_ENV=production $PM2_BIN start dist/main.js --name "uc+-api" --env production
+
+            # 💾 Guardar configuración de procesos
             $PM2_BIN save
-            echo "✅ Despliegue completado con éxito. ¡Revisar Swagger!"
+
+            echo "🧠 Verificando estado del proceso..."
+            $PM2_BIN status uc+-api || echo "⚠️ No se encontró el proceso uc+-api. Revisa los logs."
+
+            echo "📜 Últimos logs del proceso:"
+            $PM2_BIN logs uc+-api --lines 30
+
+            echo "✅ Despliegue completado con éxito."
+            echo "🌐 Revisa Swagger en: http://tu-dominio-o-ip/api/docs"
