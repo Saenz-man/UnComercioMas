@@ -30,9 +30,10 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           REMOTE_HOST: ${{ secrets.VPN_HOST }}
           REMOTE_USER: ${{ secrets.VPS_USERNAME }}
-          SOURCE: "./*"
+          SOURCE: "./"
           TARGET: "/var/www/uncomerciomas-api/"
-          ARGS: "-rltgoDzv --delete --exclude node_modules --exclude dist"
+          EXCLUDE: ".git* node_modules dist"
+          ARGS: "-rltgoDzv --delete"
 
       - name: 🚀 Instalar dependencias y arrancar API con PM2
         uses: appleboy/ssh-action@v1.0.3
