@@ -26,10 +26,10 @@ import { UploadsModule } from './uploads/uploads.module';
   imports: [
     // 1️⃣ Configuración global de variables de entorno (¡Ajuste para Robustez!)
     ConfigModule.forRoot({
-      isGlobal: true,
-      // 💡 Cargamos el archivo específico del entorno Y un archivo genérico.
-      // Esto asegura que la variable NODE_ENV sea la guía, pero con fallback.
-      envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'], 
+  isGlobal: true,
+  // 💡 Aplicar la corrección que funcionó en el servidor:
+  //envFilePath: ['.env.production', '.env'],
+  envFilePath: ['.env.development', '.env.production', '.env'],
     }),
 
     // 2️⃣ Configuración de TypeORM usando async para asegurar strings
