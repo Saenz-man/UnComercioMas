@@ -117,6 +117,11 @@ async function bootstrap() {
   const port = configService.get<number>('PORT') || 3000;
   await app.listen(port);
 
+  // 💡 NOTA DE CONFIRMACIÓN DE DESPLIEGUE (visible en logs de PM2)
+  const deployTime = new Date().toISOString();
+  console.log(`\n🎉 Despliegue CI/CD: Versión activa desde ${deployTime}\n`);
+  // -------------------------------------------------------------
+
   console.log(`🚀 API corriendo en puerto ${port}`);
   console.log(`🌐 Swagger disponible en: /api/docs`);
   console.log(`🧩 Entorno actual: ${env.toUpperCase()}`);
