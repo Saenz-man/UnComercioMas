@@ -80,7 +80,7 @@ async function bootstrap() {
 
   // --- CONFIGURACIÓN DE SWAGGER (CDN) ---
   const swaggerTitle = isProd
-    ? 'UnComercioMas API Web - Ganamos la batalla Por Gracias Yisus'
+    ? 'UnComercioMas API Web - Produccion'
     : 'UnComercioMas API Local - Entorno de Desarrollo';
 
   const swaggerDescription = isProd
