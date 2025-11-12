@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      VPS_HOST: ${{ secrets.VPN_HOST }}
+      VPS_HOST: ${{ secrets.VPN_HOST }} # Usando tu secreto VPN_HOST
       VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
       VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
 
@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       # --- FASE DE DEPLOY AL VPS (Transferir Código Fuente) ---
-
+      # (Tu script de "Desplegar código fuente" es correcto, lo dejamos igual)
       - name: 📤 Desplegar código fuente y archivos de control
         uses: easingthemes/ssh-deploy@main
         with:
@@ -42,20 +42,27 @@ jobs:
           script: |
             cd /var/www/uncomerciomas-api/
             
-            # 1. Forzar la carga de NVM/Node Path (NECESARIO para encontrar PM2)
+            # 1. Forzar la carga de NVM/Node Path (NECESARIO para encontrar PM2 y npm)
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
-            echo "Instalando dependencias de producción y compilando..."
+            echo "Instalando TODAS las dependencias (para compilar)..."
             
-            # 2. Instalación de dependencias de producción (en el VPS)
-            npm install --only=production
+            # 2. ¡CORRECCIÓN! Instalar TODAS las dependencias (incluyendo devDependencies)
+            # Esto es necesario para que 'npx nest build' funcione.
+            npm install 
             
+            echo "Compilando el código fuente..."
             # 3. Compilación (npx es necesario en el VPS para encontrar Nest CLI)
+            # Esto funcionará porque 'npm install' instaló @nestjs/cli
             npx nest build
             
+            echo "Eliminando dependencias de desarrollo..."
+            # 4. (Opcional pero recomendado) Limpiar devDependencies después del build
+            npm prune --production
+            
             echo "Reiniciando API con PM2..."
-            # 4. Reinicio de PM2
+            # 5. Reinicio de PM2
             pm2 reload uc+-api || pm2 start dist/main.js --name "uc+-api"
             pm2 save
             echo "✅ Despliegue completado con éxito."
