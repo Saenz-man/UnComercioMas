@@ -24,7 +24,7 @@ async function bootstrap() {
   // --- CONFIGURACIÓN DE SWAGGER ---
 
   const swaggerTitle = isProd
-    ? 'UnComercioMas API Central Servicio Web'
+    ? 'UnComercioMas API Web - Salimos a Produccion'
     : 'UnComercioMas API Local - Entorno de Desarrollo';
 
   const swaggerDescription = isProd
@@ -71,4 +71,3 @@ async function bootstrap() {
   console.log(`🌐 Swagger disponible en: /api/docs`);
   console.log(`🧩 Entorno actual: ${env.toUpperCase()}`);
 }
-bootstrap();

@@ -1,7 +1,7 @@
 // src/app.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -27,21 +27,23 @@ import { UploadsModule } from './uploads/uploads.module';
     // 1️⃣ Configuración global de variables de entorno
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [`.env.${process.env.NODE_ENV}`], // 👈 Carga automática según el entorno
+      envFilePath: [`.env.${process.env.NODE_ENV}`],
     }),
 
-    // 2️⃣ Configuración de TypeORM
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT),
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      autoLoadEntities: true,
-      // ✅ Solo sincroniza en entorno local
-      synchronize: process.env.NODE_ENV === 'development',
-      // logging: process.env.NODE_ENV === 'development', // <-- opcional: ver SQL en consola
+    // 2️⃣ Configuración de TypeORM usando async para asegurar strings
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'postgres',
+        host: config.get<string>('DB_HOST'),
+        port: Number(config.get<number>('DB_PORT')),
+        username: config.get<string>('DB_USERNAME'),
+        password: config.get<string>('DB_PASSWORD'), // 🔹 fuerza string
+        database: config.get<string>('DB_NAME'),
+        autoLoadEntities: true,
+        synchronize: config.get<string>('NODE_ENV') === 'development',
+      }),
     }),
 
     // 3️⃣ Módulos principales
