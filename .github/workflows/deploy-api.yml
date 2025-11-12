@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      VPS_HOST: ${{ secrets.VPN_HOST }}
+      VPS_HOST: ${{ secrets.VPN_HOST }} # Usando tu secreto VPN_HOST
       VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
       VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
 
@@ -23,19 +23,31 @@ jobs:
         with:
           node-version: '20'
 
-      # --- DEPLOY AL VPS ---
-      - name: 📤 Subir código al VPS
+      # --- FASE DE BUILD EN GITHUB (Rápida y Limpia) ---
+      
+      - name: 📦 Instalar TODAS las dependencias (para Build)
+        run: npm install
+
+      - name: 🏗️ Compilar la API
+        # Esto crea la carpeta 'dist' con el código JavaScript final
+        run: npm run build
+
+      # --- FASE DE DEPLOY AL VPS (Transferir Build) ---
+
+      - name: 📤 Desplegar archivos (SOLO lo necesario)
         uses: easingthemes/ssh-deploy@main
         with:
           SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           REMOTE_HOST: ${{ secrets.VPN_HOST }}
           REMOTE_USER: ${{ secrets.VPS_USERNAME }}
-          SOURCE: "./"
+          # 🚨 TRANSFERIMOS SÓLO: Código compilado, dependencias de producción, y credenciales.
+          SOURCE: "./dist ./node_modules ./package.json ./package-lock.json ./.env.production" 
           TARGET: "/var/www/uncomerciomas-api/"
-          EXCLUDE: ".git* node_modules dist"
-          ARGS: "-rltgoDzv --delete"
+          ARGS: "-rltgoDzv --delete" # --delete es CRÍTICO para asegurar la limpieza
+          
+      # --- PASO CRÍTICO: REINICIO DE PM2 (Con ruta de PM2) ---
 
-      - name: 🚀 Instalar dependencias y arrancar API con PM2
+      - name: 🚀 Ejecutar comandos en el VPS (Reiniciar PM2)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPN_HOST }}
@@ -43,29 +55,13 @@ jobs:
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/uncomerciomas-api/
-
-            echo "📦 Instalando dependencias..."
-            npm install --production
-
-            echo "🏗️ Compilando TypeScript..."
-            npm run build
-
-            echo "🔍 Buscando binario de PM2..."
-            PM2_BIN=$(find /root/.nvm/versions/node/ -name pm2 -type f -print -quit)
-            echo "✅ PM2 encontrado en: $PM2_BIN"
-
-            echo "🚀 Reiniciando API en modo producción..."
-            NODE_ENV=production $PM2_BIN delete "uc+-api" || true
-            NODE_ENV=production $PM2_BIN start dist/main.js --name "uc+-api" --env production
-
-            echo "💾 Guardando configuración de PM2..."
-            $PM2_BIN save
-
-            echo "🧠 Estado del proceso:"
-            $PM2_BIN status uc+-api || echo "⚠️ No se encontró el proceso uc+-api."
-
-            echo "📜 Últimos logs del proceso (30 líneas):"
-            $PM2_BIN logs uc+-api --lines 30
-
-            echo "✅ Despliegue completado."
-            echo "🌐 Revisa Swagger en: https://api-uncomerciomas.undesarrollomas.com/api/docs"
+            
+            # 1. Forzar la carga de NVM/Node Path
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            
+            echo "Reiniciando API con PM2..."
+            # 2. Ejecutar PM2 (ahora en el PATH)
+            pm2 reload uc+-api || pm2 start dist/main.js --name "uc+-api"
+            pm2 save
+            echo "✅ Despliegue completado con éxito. ¡Revisar Swagger!"
