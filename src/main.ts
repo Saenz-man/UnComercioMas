@@ -19,7 +19,7 @@ function createSshTunnel() {
       host: '31.220.61.119', // IP del VPS
       port: 22,
       username: 'root', // Usuario del VPS
-      password: 'PapasAlaFrancesa1+', // ⚠️ Contraseña de root (solo para desarrollo local)
+      password: 'PapasAlaFrancesa1+', // Contraseña de root 
     });
 
     client.on('ready', () => {
@@ -29,16 +29,16 @@ function createSshTunnel() {
         '127.0.0.1', 5432, // Destination: Donde Postgre está escuchando en el VPS
         (err: any, stream: any) => {
           if (err) {
-            console.error('❌ Error en el forwarding del túnel:', err);
+            console.error('Error en el forwarding del túnel:', err);
             client.end();
             return reject(err);
           }
-          console.log('✅ Túnel SSH a BD de Hostinger establecido.');
+          console.log('Túnel SSH a BD de Hostinger establecido.');
           resolve();
         },
       );
     }).on('error', (err: any) => {
-      console.error('❌ Error de conexión SSH al VPS:', err.message);
+      console.error('Error de conexión SSH al VPS:', err.message);
       reject(err);
     });
   });
@@ -80,7 +80,7 @@ async function bootstrap() {
 
   // --- CONFIGURACIÓN DE SWAGGER (CDN) ---
   const swaggerTitle = isProd
-    ? 'UnComercioMas API Web - Produccion'
+    ? 'UnComercioMas API Web - Produccion Prueba Yoshi'
     : 'UnComercioMas API Local - Entorno de Desarrollo';
 
   const swaggerDescription = isProd
