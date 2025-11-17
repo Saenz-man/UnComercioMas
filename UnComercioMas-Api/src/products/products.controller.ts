@@ -47,8 +47,8 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from '../auth/Guards/roles.guard';
-import { Roles } from '../auth/Decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 
 // --- Interceptor para manejo de archivos ---
@@ -70,7 +70,7 @@ class BulkDeleteProductsDto {
 @ApiTags('Catálogo / Productos y Variantes')
 @Controller('products') // Prefijo global 'api/v1' se aplica automáticamente
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(private readonly productsService: ProductsService) { }
 
   // ====================================================
   // --- CRUD del Producto "Padre" --- by Dev Saenz

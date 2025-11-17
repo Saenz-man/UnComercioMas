@@ -1,38 +1,38 @@
 // En src/orders/orders.controller.ts
 
 // --- IMPORTS NECESARIOS ---
-import { 
-  Controller, 
-  Get, 
-  Query, 
-  UseGuards, 
-  ParseIntPipe, 
-  DefaultValuePipe 
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+  DefaultValuePipe
 } from '@nestjs/common';
-import { 
-  ApiTags, 
-  ApiBearerAuth, 
-  ApiOperation, 
-  ApiQuery, 
-  ApiResponse 
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from './orders.service';
-import { RolesGuard } from '../auth/Guards/roles.guard';
-import { Roles } from '../auth/Decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 // --- FIN DE IMPORTS ---
 
 
-@ApiTags('Admin / Dashboard / Orders') 
+@ApiTags('Admin / Dashboard / Orders')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
-@Controller('orders') 
-export class OrdersController { 
-  constructor(private readonly ordersService: OrdersService) {}
+@Controller('orders')
+export class OrdersController {
+  constructor(private readonly ordersService: OrdersService) { }
 
   // Endpoint para órdenes recientes (ahora bajo /orders/admin/recent-orders)
-  @Get('admin/recent-orders') 
+  @Get('admin/recent-orders')
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'ADMIN: Obtiene las últimas órdenes para el dashboard' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Número de órdenes a obtener (default: 5)' })
@@ -41,7 +41,7 @@ export class OrdersController {
     @Query('limit', new DefaultValuePipe(5), ParseIntPipe) limit: number,
   ) {
     // Asegúrate de que ordersService tenga el método findRecentOrders
-    return this.ordersService.findRecentOrders(limit); 
+    return this.ordersService.findRecentOrders(limit);
   }
 
   // --- AQUÍ PUEDES AÑADIR LOS OTROS ENDPOINTS DE ÓRDENES ---

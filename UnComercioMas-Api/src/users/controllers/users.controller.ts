@@ -1,11 +1,11 @@
 // src/users/controllers/users.controller.ts
 import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport'; 
+import { AuthGuard } from '@nestjs/passport';
 
 import { UserRole } from '../entities/user.entity';
-import { Roles } from '../../auth/Decorators/roles.decorator';
-import { RolesGuard } from '../../auth/Guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { RolesGuard } from '../../auth/guards/roles.guard';
 
 @ApiTags('Usuarios')
 @Controller('users')

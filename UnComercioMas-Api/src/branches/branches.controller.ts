@@ -1,13 +1,13 @@
 // src/branches/branches.controller.ts
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Patch, 
-  Param, 
-  Delete, 
-  HttpCode, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  HttpCode,
   HttpStatus,
   UseGuards // <-- Importar
 } from '@nestjs/common';
@@ -18,18 +18,18 @@ import { UpdateBranchDto } from './DTO/update-branch.dto';
 // --- Imports de Seguridad y Swagger ---
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from '../auth/Guards/roles.guard';
-import { Roles } from '../auth/Decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 
 @ApiTags('Inventario / Sucursales')
 @Controller('branches')
 export class BranchesController {
-  constructor(private readonly branchesService: BranchesService) {}
+  constructor(private readonly branchesService: BranchesService) { }
 
   // --- CREAR (POST) [Protegido] ---
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard) 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
@@ -61,7 +61,7 @@ export class BranchesController {
 
   // --- ACTUALIZAR (PATCH /:id) [Protegido] ---
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard) 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
@@ -75,7 +75,7 @@ export class BranchesController {
 
   // --- ELIMINAR (DELETE /:id) [Protegido] ---
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard) 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT) // 204

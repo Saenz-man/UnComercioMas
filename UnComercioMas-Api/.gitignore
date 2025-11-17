@@ -14,11 +14,7 @@
 ----------------------------------------------------
 
 # Variables de entorno (¡CRÍTICO! Contiene JWT_SECRET, DB_PASSWORD)
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env*
 
 ----------------------------------------------------
 3. ARCHIVOS DE REGISTRO Y CACHE

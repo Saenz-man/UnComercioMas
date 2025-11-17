@@ -30,14 +30,14 @@ export class User {
 
   // Campos para autenticación social (opcional)
   @Column({ type: 'text', nullable: true })
-  proveedor_oauth: string; 
+  proveedor_oauth: string;
 
   @Column({ type: 'text', nullable: true })
   id_proveedor_oauth: string;
 
   // Datos específicos del vendedor (JSONB)
   @Column({ type: 'jsonb', nullable: true, default: {} })
-  detalles_vendedor: any; 
+  detalles_vendedor: any;
 
   @Column({ type: 'boolean', default: true })
   activo: boolean;

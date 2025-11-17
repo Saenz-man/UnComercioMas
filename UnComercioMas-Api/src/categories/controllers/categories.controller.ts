@@ -1,32 +1,32 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Delete, 
-  Param, 
-  UseGuards, 
-  HttpStatus, 
-  HttpCode 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Delete,
+  Param,
+  UseGuards,
+  HttpStatus,
+  HttpCode
 } from '@nestjs/common';
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiBearerAuth, 
-  ApiResponse, 
-  ApiBody 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiBody
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { UserRole } from '../../users/entities/user.entity';
-import { Roles } from '../../auth/Decorators/roles.decorator';
-import { RolesGuard } from '../../auth/Guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { RolesGuard } from '../../auth/guards/roles.guard';
 import { CategoriesService } from '../service/categories.service';
 import { CreateCategoryDto } from '../DTO/create-category';
 
 @ApiTags('Catálogo / Categorías')
 @Controller('categories')
 export class CategoriesController {
-  constructor(private readonly categoriesService: CategoriesService) {}
+  constructor(private readonly categoriesService: CategoriesService) { }
 
   // ----------------------------------------------------
   // S2.2: ENDPOINT PÚBLICO - OBTENER TODAS
@@ -60,17 +60,17 @@ export class CategoriesController {
   // S2.1: ENDPOINT PROTEGIDO (ADMIN) - CREAR
   // ----------------------------------------------------
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard) 
-  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN) 
-  @ApiBearerAuth() 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'ADMIN: Crea una nueva categoría' })
   @ApiResponse({ status: 201, description: 'Categoría creada con éxito.' })
-  @ApiBody({ type: CreateCategoryDto }) 
+  @ApiBody({ type: CreateCategoryDto })
   async create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoriesService.create(createCategoryDto);
   }
-  
+
   // ... (Aquí deberías añadir tus endpoints de UPDATE (Patch) y DELETE)
   // ... (Esos dos (update y remove) SÍ deberían llevar los mismos guards que el POST)
 }
