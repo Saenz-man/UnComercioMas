@@ -21,15 +21,16 @@ import { OrdersModule } from './orders/orders.module';
 
 // --- Módulo de subida de contenido ---
 import { UploadsModule } from './uploads/uploads.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
     // 1️⃣ Configuración global de variables de entorno (¡Ajuste para Robustez!)
     ConfigModule.forRoot({
-  isGlobal: true,
-  // 💡 Aplicar la corrección que funcionó en el servidor:
-  //envFilePath: ['.env.production', '.env'],
-  envFilePath: ['.env.development', '.env.production', '.env'],
+      isGlobal: true,
+      // 💡 Aplicar la corrección que funcionó en el servidor:
+      //envFilePath: ['.env.production', '.env'],
+      envFilePath: ['.env.development', '.env.production', '.env'],
     }),
 
     // 2️⃣ Configuración de TypeORM usando async para asegurar strings
@@ -53,6 +54,7 @@ import { UploadsModule } from './uploads/uploads.module';
     UsersModule,
     AuthModule,
     SharedModule,
+    AdminModule,
 
     // 4️⃣ Módulos del catálogo y operaciones
     CategoriesModule,
@@ -67,4 +69,4 @@ import { UploadsModule } from './uploads/uploads.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

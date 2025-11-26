@@ -23,10 +23,7 @@ yarn-error.log*
 # 3. DATOS SENSIBLES Y AMBIENTES LOCALES
 # ----------------------------------------------------------------------
 # Excluye la configuración de desarrollo y local (¡CRUCIAL!)
-.env.development
-.env.local
-.env.*.local
-.env # Si usas solo .env sin extensión
+.env*
 
 # ----------------------------------------------------------------------
 # 4. ARCHIVOS DE SUBIDAS (UPLOADS)

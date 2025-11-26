@@ -1,5 +1,4 @@
-// src/branches/branches.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not } from 'typeorm';
 import { Branch } from './entities/branch.entity';
@@ -11,19 +10,27 @@ export class BranchesService {
   constructor(
     @InjectRepository(Branch)
     private readonly branchRepository: Repository<Branch>,
-  ) {}
+  ) { }
+
+  // --- Manejo de Errores Privado ---
+  private handleDBErrors(error: any): never {
+    // Código de error de Postgres para "Unique Violation"
+    if (error.code === '23505') {
+      throw new ConflictException('Ya existe una sucursal con ese nombre');
+    }
+    console.error(error);
+    throw new InternalServerErrorException('Error en el servidor al procesar la sucursal');
+  }
 
   /**
    * Lógica para asegurar que solo una sucursal sea la matriz.
-   * Si 'es_matriz' es true, pone todas las demás en 'false'.
-   * @param {string} [excludeId] - El ID de la sucursal actual (para no ponerla en false)
    */
   private async handleMatrixStatus(excludeId?: string): Promise<void> {
     const whereCondition: any = { es_matriz: true };
     if (excludeId) {
       whereCondition.id = Not(excludeId);
     }
-    
+
     await this.branchRepository.update(whereCondition, {
       es_matriz: false,
     });
@@ -35,8 +42,13 @@ export class BranchesService {
       await this.handleMatrixStatus();
     }
 
-    const newBranch = this.branchRepository.create(createDto);
-    return this.branchRepository.save(newBranch);
+    // INTEGRACIÓN DEL MANEJO DE ERRORES AQUÍ
+    try {
+      const newBranch = this.branchRepository.create(createDto);
+      return await this.branchRepository.save(newBranch);
+    } catch (error) {
+      this.handleDBErrors(error); // Llama al manejador
+    }
   }
 
   // --- LEER TODOS (GET) ---
@@ -73,7 +85,12 @@ export class BranchesService {
       throw new NotFoundException(`Sucursal con ID "${id}" no encontrada.`);
     }
 
-    return this.branchRepository.save(branch);
+    // INTEGRACIÓN DEL MANEJO DE ERRORES AQUÍ
+    try {
+      return this.branchRepository.save(branch);
+    } catch (error) {
+      this.handleDBErrors(error); // Llama al manejador
+    }
   }
 
   // --- ELIMINAR (DELETE /:id) ---
@@ -83,13 +100,12 @@ export class BranchesService {
       throw new NotFoundException(`Sucursal con ID "${id}" no encontrada.`);
     }
   }
-  
+
   // 🟢 MÉTODO NUEVO PARA ENCONTRAR LA MATRIZ
   async findMatriz(): Promise<Branch> {
     const matriz = await this.branchRepository.findOneBy({ es_matriz: true });
-    
+
     if (!matriz) {
-      // Lanzar error si no hay matriz, es un requisito funcional.
       throw new NotFoundException('No se encontró ninguna sucursal marcada como Matriz.');
     }
     return matriz;

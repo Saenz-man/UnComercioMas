@@ -11,7 +11,7 @@ export class UsersPostgresRepository implements IUserRepository {
   constructor(
     @InjectRepository(User)
     private readonly repository: Repository<User>,
-  ) {}
+  ) { }
 
   /**
    * Registra un nuevo usuario en la DB, implementando el candado de unicidad.
@@ -38,7 +38,7 @@ export class UsersPostgresRepository implements IUserRepository {
     email: string,
     selectPassword = false, // Recibe el parámetro
   ): Promise<User | null> {
-    
+
     // Usamos QueryBuilder para seleccionar campos dinámicamente
     const queryBuilder = this.repository.createQueryBuilder('user')
       .select(['user.id', 'user.email', 'user.rol', 'user.activo']) // Campos base siempre seleccionados
@@ -58,5 +58,10 @@ export class UsersPostgresRepository implements IUserRepository {
   async findById(id: string): Promise<User | null> {
     // findOneBy es simple y seguro para buscar por ID
     return this.repository.findOneBy({ id });
+  }
+
+  async find(options: any): Promise<User[]> {
+    // Simplemente pasamos las opciones (where, select, etc.) a TypeORM
+    return this.repository.find(options);
   }
 }

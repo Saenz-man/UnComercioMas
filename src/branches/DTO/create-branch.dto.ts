@@ -1,10 +1,10 @@
 // src/branches/DTO/create-branch.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { 
-  IsString, 
-  IsNotEmpty, 
-  IsOptional, 
-  IsBoolean 
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean
 } from 'class-validator';
 
 export class CreateBranchDto {
@@ -24,17 +24,17 @@ export class CreateBranchDto {
   @IsOptional()
   telefono?: string;
 
-  @ApiProperty({ 
-    description: 'Indica si esta es la sucursal matriz (principal)', 
-    default: false 
+  @ApiProperty({
+    description: 'Indica si esta es la sucursal matriz (principal)',
+    default: false
   })
   @IsBoolean()
   @IsOptional()
   es_matriz?: boolean;
 
-  @ApiProperty({ 
-    description: 'Tipo de sucursal (ej: bodega, tienda, oficina)', 
-    default: 'sucursal' 
+  @ApiProperty({
+    description: 'Tipo de sucursal (ej: bodega, tienda, oficina)',
+    default: 'sucursal'
   })
   @IsString()
   @IsOptional()

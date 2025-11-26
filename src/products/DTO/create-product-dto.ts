@@ -14,6 +14,8 @@ import {
   IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { CreateProductVariantDto } from './create-product-variant.dto';
+
 
 // ======================================================
 // === DTO ANIDADO: Precio por Volumen ===
@@ -38,57 +40,58 @@ class CreateVolumePriceDto {
 // ======================================================
 // === DTO ANIDADO: Variante (SKU) ===
 // ======================================================
-export class CreateProductVariantDto {
-  @ApiProperty({
-    description: 'SKU único de la variante (identificador del producto hijo)',
-    example: 'PLAYERA-BRUSH-H-CH-BLANCO',
-  })
-  @IsString()
-  @IsNotEmpty({ message: 'El SKU es obligatorio.' })
-  sku: string;
+//  YOSHI: Comentado temporalmente para evitar conflictos de importación circular.
+// export class CreateProductVariantDto {
+//   @ApiProperty({
+//     description: 'SKU único de la variante (identificador del producto hijo)',
+//     example: 'PLAYERA-BRUSH-H-CH-BLANCO',
+//   })
+//   @IsString()
+//   @IsNotEmpty({ message: 'El SKU es obligatorio.' })
+//   sku: string;
 
-  @ApiProperty({
-    description: 'Cantidad de stock disponible para la variante',
-    example: 50,
-  })
-  @IsNumber({}, { message: 'El stock debe ser un número.' })
-  // --- CORRECCIÓN 2 (La principal que reportaste) ---
-  @Min(0, { message: 'El stock no puede ser negativo (puede ser 0).' })
-  stock: number;
+//   @ApiProperty({
+//     description: 'Cantidad de stock disponible para la variante',
+//     example: 50,
+//   })
+//   @IsNumber({}, { message: 'El stock debe ser un número.' })
+//   // --- CORRECCIÓN 2 (La principal que reportaste) ---
+//   @Min(0, { message: 'El stock no puede ser negativo (puede ser 0).' })
+//   stock: number;
 
-  @ApiProperty({
-    description: 'URL de la foto específica de esta variante',
-    example: 'https://cdn.miapp.com/img/playera-blanca-ch.jpg',
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  foto?: string;
+//   @ApiProperty({
+//     description: 'URL de la foto específica de esta variante',
+//     example: 'https://cdn.miapp.com/img/playera-blanca-ch.jpg',
+//     required: false,
+//   })
+//   @IsString()
+//   @IsOptional()
+//   foto?: string;
 
-  @ApiProperty({
-    description:
-      'Opciones aplicadas a esta variante. Las claves son dinámicas (ej. Talla, Color, Material, etc.)',
-    example: {
-      Talla: 'CH',
-      Color: 'Blanco',
-    },
-  })
-  @IsObject({ message: 'Las opciones deben ser un objeto válido.' })
-  @IsNotEmpty({ message: 'Cada variante debe tener al menos una opción.' })
-  opciones: Record<string, string>;
+//   @ApiProperty({
+//     description:
+//       'Opciones aplicadas a esta variante. Las claves son dinámicas (ej. Talla, Color, Material, etc.)',
+//     example: {
+//       Talla: 'CH',
+//       Color: 'Blanco',
+//     },
+//   })
+//   @IsObject({ message: 'Las opciones deben ser un objeto válido.' })
+//   @IsNotEmpty({ message: 'Cada variante debe tener al menos una opción.' })
+//   opciones: Record<string, string>;
 
-  @ApiProperty({
-    description:
-      'Precio específico de esta variante (si es distinto del precio base)',
-    example: 0,
-    required: false,
-  })
-  @IsNumber({}, { message: 'El precio debe ser un número.' })
-  // --- CORRECCIÓN 3 (Proactiva) ---
-  @Min(0, { message: 'El precio de la variante no puede ser negativo.' })
-  @IsOptional()
-  precio?: number;
-}
+//   @ApiProperty({
+//     description:
+//       'Precio específico de esta variante (si es distinto del precio base)',
+//     example: 0,
+//     required: false,
+//   })
+//   @IsNumber({}, { message: 'El precio debe ser un número.' })
+//   // --- CORRECCIÓN 3 (Proactiva) ---
+//   @Min(0, { message: 'El precio de la variante no puede ser negativo.' })
+//   @IsOptional()
+//   precio?: number;
+// }
 
 // ======================================================
 // === DTO PRINCIPAL: Producto Padre ===

@@ -11,5 +11,7 @@ export interface IUserRepository {
   /** Busca un usuario por su ID */
   findById(id: string): Promise<User | null>;
 
+  find(options: any): Promise<User[]>;
+
   // Opcional: findAll?(): Promise<User[]>;
 }

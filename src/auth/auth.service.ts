@@ -16,7 +16,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersCoreService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   // ----------------------------------------------------
   // LÓGICA DE REGISTRO (POST /auth/register)
@@ -24,14 +24,11 @@ export class AuthService {
   async registerClient(registerDto: RegisterDto): Promise<Partial<User>> {
     const existingUser = await this.usersService.findUserByEmail(registerDto.email);
     if (existingUser) {
-       throw new ConflictException('El correo electrónico ya está registrado.');
+      throw new ConflictException('El correo electrónico ya está registrado.');
     }
 
-    const newUser = await this.usersService.registerNewClient({
-      ...registerDto,
-      rol: UserRole.CLIENTE,
-      activo: true,
-    });
+    // CORRECCIÓN: Solo pasamos el DTO. El servicio core ya sabe que es CLIENTE y ACTIVO.
+    const newUser = await this.usersService.registerNewClient(registerDto);
 
     const { hash_contrasena, ...result } = newUser;
     return result;
@@ -66,10 +63,10 @@ export class AuthService {
 
     // Preparamos el objeto user para devolver (sin campos sensibles si los hubiera)
     const userResponse = {
-        id: user.id,
-        email: user.email,
-        rol: user.rol
-        // Puedes añadir más campos seguros si los necesitas en el frontend
+      id: user.id,
+      email: user.email,
+      rol: user.rol
+      // Puedes añadir más campos seguros si los necesitas en el frontend
     };
 
     return {
